@@ -1,0 +1,316 @@
+/* =====================================================================
+   APP DE LIDERANÇA — SALT-FAAMA
+   Identidade visual tirada da logo: azul-marinho, dourado, branco.
+   Mobile-first: tudo é desenhado para o celular e cresce para a tela grande.
+   ===================================================================== */
+
+:root {
+  --marinho-900: #011538;
+  --marinho-800: #012056;
+  --marinho-700: #012767;
+  --marinho-600: #0a3a8c;
+  --azul-claro:  #2f6fd0;
+
+  --dourado:     #f2b705;
+  --dourado-esc: #c8960a;
+  --vermelho:    #d32a1e;
+  --verde:       #16794a;
+
+  --papel:       #f4f6fa;
+  --branco:      #ffffff;
+  --borda:       #dce3ee;
+  --texto:       #16233a;
+  --texto-suave: #5b6b85;
+
+  --raio:        14px;
+  --raio-p:      9px;
+  --sombra:      0 1px 2px rgba(1,32,86,.06), 0 8px 24px rgba(1,32,86,.08);
+  --sombra-alta: 0 12px 40px rgba(1,21,56,.28);
+
+  --fonte: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--fonte);
+  color: var(--texto);
+  background: var(--papel);
+  -webkit-text-size-adjust: 100%;
+}
+
+/* ---------------------------------------------------------------- telas */
+
+.tela { display: none; }
+.tela.ativa { display: block; }
+
+/* ------------------------------------------------------- fundo de acesso */
+
+.fundo-acesso {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background:
+    radial-gradient(1100px 620px at 50% -10%, var(--marinho-600) 0%, transparent 62%),
+    linear-gradient(170deg, var(--marinho-800) 0%, var(--marinho-900) 100%);
+}
+
+.cartao-acesso {
+  width: 100%;
+  max-width: 420px;
+  background: var(--branco);
+  border-radius: 20px;
+  box-shadow: var(--sombra-alta);
+  padding: 28px 22px 24px;
+}
+
+.marca {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+  text-align: center;
+}
+
+.marca img {
+  width: 92px;
+  height: 92px;
+  border-radius: 20px;
+  box-shadow: 0 6px 18px rgba(1,32,86,.22);
+}
+
+.marca h1 {
+  margin: 0;
+  font-size: 1.12rem;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  color: var(--marinho-800);
+}
+
+.marca p {
+  margin: 0;
+  font-size: .82rem;
+  color: var(--texto-suave);
+}
+
+/* ------------------------------------------------------------ formulário */
+
+.campo { margin-bottom: 14px; }
+
+.campo label {
+  display: block;
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--texto-suave);
+  margin-bottom: 6px;
+}
+
+.campo label .obrig { color: var(--vermelho); }
+
+input[type=text], input[type=email], input[type=password],
+input[type=date], input[type=tel], select, textarea {
+  width: 100%;
+  padding: 12px 13px;
+  font-family: inherit;
+  font-size: 1rem;              /* 16px: impede o zoom automático no iPhone */
+  color: var(--texto);
+  background: var(--branco);
+  border: 1.5px solid var(--borda);
+  border-radius: var(--raio-p);
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--azul-claro);
+  box-shadow: 0 0 0 3px rgba(47,111,208,.16);
+}
+
+input[aria-invalid="true"] { border-color: var(--vermelho); }
+
+textarea { min-height: 110px; resize: vertical; }
+
+.senha-caixa { position: relative; }
+
+.senha-caixa input { padding-right: 46px; }
+
+.olho {
+  position: absolute;
+  right: 6px; top: 50%;
+  transform: translateY(-50%);
+  width: 36px; height: 36px;
+  display: grid; place-items: center;
+  border: 0; background: none; cursor: pointer;
+  color: var(--texto-suave);
+  border-radius: 8px;
+}
+
+.olho:hover { background: var(--papel); }
+
+.linha-opcoes {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 4px 0 18px;
+  font-size: .85rem;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--texto-suave);
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox input { width: 17px; height: 17px; accent-color: var(--marinho-700); }
+
+/* ---------------------------------------------------------------- botões */
+
+.botao {
+  width: 100%;
+  padding: 13px 16px;
+  font-family: inherit;
+  font-size: .98rem;
+  font-weight: 650;
+  border: 0;
+  border-radius: var(--raio-p);
+  cursor: pointer;
+  transition: filter .15s, transform .06s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.botao:active { transform: translateY(1px); }
+.botao:disabled { opacity: .55; cursor: not-allowed; }
+
+.botao-principal { background: var(--marinho-700); color: #fff; }
+.botao-principal:hover:not(:disabled) { filter: brightness(1.13); }
+
+.botao-dourado { background: var(--dourado); color: var(--marinho-900); }
+.botao-dourado:hover:not(:disabled) { filter: brightness(1.06); }
+
+.botao-vazado {
+  background: transparent;
+  color: var(--marinho-700);
+  border: 1.5px solid var(--borda);
+}
+.botao-vazado:hover:not(:disabled) { background: var(--papel); }
+
+.link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-family: inherit;
+  font-size: .85rem;
+  color: var(--azul-claro);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+.link:hover { text-decoration: underline; }
+
+.rodape-acesso {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--borda);
+  text-align: center;
+  font-size: .85rem;
+  color: var(--texto-suave);
+}
+
+.rodape-acesso .botao { margin-top: 10px; }
+
+/* ---------------------------------------------------------------- avisos */
+
+.aviso {
+  display: none;
+  padding: 11px 13px;
+  border-radius: var(--raio-p);
+  font-size: .87rem;
+  line-height: 1.45;
+  margin-bottom: 14px;
+}
+
+.aviso.visivel { display: block; }
+.aviso.erro    { background: #fdecea; color: #8c1c13; border: 1px solid #f5c6c2; }
+.aviso.ok      { background: #e7f6ee; color: #0e5c37; border: 1px solid #b7e2cb; }
+.aviso.info    { background: #eaf1fd; color: #123a7a; border: 1px solid #c3d7f6; }
+
+/* ------------------------------------------------------------- girandinho */
+
+.girando {
+  width: 17px; height: 17px;
+  border: 2.5px solid rgba(255,255,255,.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: gira .7s linear infinite;
+}
+
+.botao-dourado .girando,
+.botao-vazado .girando { border-color: rgba(1,32,86,.25); border-top-color: var(--marinho-800); }
+
+@keyframes gira { to { transform: rotate(360deg); } }
+
+/* ------------------------------------------------- cadastro (duas colunas) */
+
+.grade-2 { display: grid; grid-template-columns: 1fr; gap: 0 14px; }
+
+@media (min-width: 520px) {
+  .grade-2 { grid-template-columns: 1fr 1fr; }
+  .grade-2 .largura-total { grid-column: 1 / -1; }
+}
+
+.dica-campo {
+  font-size: .76rem;
+  color: var(--texto-suave);
+  margin-top: 5px;
+}
+
+.voltar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+  font-size: .86rem;
+  color: var(--texto-suave);
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font-family: inherit; font-weight: 600;
+}
+.voltar:hover { color: var(--marinho-700); }
+
+/* --------------------------------------------------- código de 6 dígitos */
+
+.codigo-caixa {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.codigo-caixa input {
+  width: 100%;
+  max-width: 52px;
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  padding: 12px 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------- utilidades */
+
+.oculto { display: none !important; }
+.centro { text-align: center; }
+.mt-8  { margin-top: 8px; }
+.mt-16 { margin-top: 16px; }
