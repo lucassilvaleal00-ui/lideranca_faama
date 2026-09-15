@@ -1,0 +1,16 @@
+{
+  "name": "App de Liderança — SALT-FAAMA",
+  "short_name": "Liderança",
+  "description": "Cartões de liderança de Aventureiros, Desbravadores e Jovens",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#012056",
+  "theme_color": "#012056",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "assets/icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
