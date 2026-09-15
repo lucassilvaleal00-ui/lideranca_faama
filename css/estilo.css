@@ -314,3 +314,293 @@ textarea { min-height: 110px; resize: vertical; }
 .centro { text-align: center; }
 .mt-8  { margin-top: 8px; }
 .mt-16 { margin-top: 16px; }
+
+/* =====================================================================
+   TELAS INTERNAS (depois do login)
+   ===================================================================== */
+
+.pagina { min-height: 100dvh; display: flex; flex-direction: column; }
+
+/* ------------------------------------------------------- barra superior */
+
+.barra {
+  position: sticky; top: 0; z-index: 40;
+  background: var(--marinho-800);
+  color: #fff;
+  padding: 10px 14px;
+  padding-top: calc(10px + env(safe-area-inset-top));
+  display: flex; align-items: center; gap: 12px;
+  box-shadow: 0 2px 12px rgba(1,21,56,.22);
+}
+
+.barra-marca { display: flex; align-items: center; gap: 10px; margin-right: auto; min-width: 0; }
+.barra-marca img { width: 34px; height: 34px; border-radius: 9px; flex: none; }
+.barra-marca span {
+  font-weight: 700; font-size: .95rem; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+
+.icone-barra {
+  position: relative;
+  width: 40px; height: 40px; flex: none;
+  display: grid; place-items: center;
+  background: rgba(255,255,255,.1);
+  border: 0; border-radius: 11px;
+  color: #fff; font-size: 1.05rem; cursor: pointer;
+  transition: background .15s;
+}
+.icone-barra:hover { background: rgba(255,255,255,.2); }
+
+.selo {
+  position: absolute; top: -4px; right: -4px;
+  min-width: 19px; height: 19px; padding: 0 5px;
+  background: var(--vermelho); color: #fff;
+  border-radius: 10px; font-size: .68rem; font-weight: 700;
+  display: grid; place-items: center;
+  border: 2px solid var(--marinho-800);
+}
+.selo:empty, .selo[hidden] { display: none; }
+
+.avatar {
+  width: 40px; height: 40px; flex: none;
+  border-radius: 50%; object-fit: cover;
+  border: 2px solid rgba(255,255,255,.55);
+  background: var(--marinho-600);
+  cursor: pointer;
+}
+
+.avatar-letra {
+  display: grid; place-items: center;
+  font-weight: 700; font-size: .95rem; color: #fff;
+}
+
+/* ------------------------------------------------------------- conteúdo */
+
+.conteudo {
+  flex: 1;
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 22px 16px 48px;
+}
+
+.saudacao { margin: 0 0 4px; font-size: 1.3rem; font-weight: 700; color: var(--marinho-800); }
+.saudacao-sub { margin: 0 0 26px; color: var(--texto-suave); font-size: .9rem; }
+
+.titulo-secao {
+  display: flex; align-items: center; gap: 10px;
+  margin: 0 0 14px;
+  font-size: .78rem; font-weight: 700;
+  letter-spacing: .09em; text-transform: uppercase;
+  color: var(--texto-suave);
+}
+.titulo-secao::after {
+  content: ''; flex: 1; height: 1px; background: var(--borda);
+}
+
+.grade-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  margin-bottom: 34px;
+}
+
+@media (min-width: 640px)  { .grade-cards { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 960px)  { .grade-cards { grid-template-columns: repeat(3, 1fr); } }
+
+/* ------------------------------------------------------- card de classe */
+
+.card {
+  background: var(--branco);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+  overflow: hidden;
+}
+
+.card-topo {
+  padding: 12px 16px;
+  font-size: .76rem; font-weight: 700;
+  letter-spacing: .07em; text-transform: uppercase;
+  color: #fff;
+}
+
+.card-topo.aventureiros  { background: linear-gradient(100deg, #1565c0, #0d47a1); }
+.card-topo.desbravadores { background: linear-gradient(100deg, #d32a1e, #9c1f16); }
+.card-topo.jovens        { background: linear-gradient(100deg, #e8a900, #c8960a); }
+
+.card-corpo { padding: 6px 16px 14px; }
+
+.classe {
+  padding: 13px 0;
+  border-bottom: 1px solid var(--borda);
+}
+.classe:last-child { border-bottom: 0; }
+
+.classe-topo {
+  display: flex; align-items: baseline; gap: 10px;
+  margin-bottom: 8px;
+}
+
+.classe-nome {
+  font-weight: 650; font-size: .94rem; color: var(--texto);
+  margin-right: auto;
+}
+
+.classe-conta {
+  font-size: .82rem; font-weight: 700;
+  color: var(--marinho-700);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+.trilho {
+  height: 8px; border-radius: 99px;
+  background: #e8edf6; overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.trilho i {
+  display: block; height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--dourado), var(--dourado-esc));
+  transition: width .5s ease;
+}
+
+.classe-rodape {
+  display: flex; align-items: center; gap: 10px;
+  font-size: .78rem; color: var(--texto-suave);
+}
+
+.classe-rodape .botao { width: auto; padding: 7px 13px; font-size: .82rem; margin-left: auto; }
+
+.etiqueta {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 99px;
+  font-size: .72rem; font-weight: 700;
+  letter-spacing: .02em;
+}
+.etiqueta.aguardando { background: #fff3d6; color: #8a6200; }
+.etiqueta.ativa      { background: #e7f6ee; color: #0e5c37; }
+.etiqueta.aprovada   { background: #e5edfb; color: #123a7a; }
+.etiqueta.sem        { background: #eef1f6; color: var(--texto-suave); }
+
+/* --------------------------------------------------- card de ferramenta */
+
+.ferramenta {
+  display: flex; align-items: center; gap: 14px;
+  padding: 18px 16px;
+  background: var(--branco);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  width: 100%;
+  transition: transform .12s, box-shadow .12s, border-color .12s;
+}
+
+.ferramenta:hover {
+  transform: translateY(-2px);
+  border-color: var(--azul-claro);
+  box-shadow: 0 6px 20px rgba(1,32,86,.13);
+}
+
+.ferramenta .simbolo {
+  width: 46px; height: 46px; flex: none;
+  display: grid; place-items: center;
+  border-radius: 12px;
+  background: var(--papel);
+  font-size: 1.35rem;
+}
+
+.ferramenta h3 { margin: 0 0 3px; font-size: .96rem; font-weight: 650; color: var(--texto); }
+.ferramenta p  { margin: 0; font-size: .8rem; color: var(--texto-suave); line-height: 1.4; }
+
+/* ------------------------------------------------------------- menus */
+
+.menu-flutuante {
+  position: absolute; right: 14px; top: 62px; z-index: 60;
+  min-width: 220px;
+  background: var(--branco);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra-alta);
+  padding: 6px;
+  display: none;
+}
+.menu-flutuante.aberto { display: block; }
+
+.menu-flutuante .cabeca {
+  padding: 10px 12px 12px;
+  border-bottom: 1px solid var(--borda);
+  margin-bottom: 6px;
+}
+.menu-flutuante .cabeca strong { display: block; font-size: .9rem; color: var(--texto); }
+.menu-flutuante .cabeca small  { color: var(--texto-suave); font-size: .78rem; }
+
+.menu-item {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; padding: 10px 12px;
+  background: none; border: 0; border-radius: 9px;
+  font-family: inherit; font-size: .88rem; color: var(--texto);
+  text-align: left; cursor: pointer;
+}
+.menu-item:hover { background: var(--papel); }
+.menu-item.perigo { color: var(--vermelho); }
+
+/* --------------------------------------------------------- notificações */
+
+.lista-notificacoes { max-height: 60vh; overflow-y: auto; }
+
+.notificacao {
+  padding: 11px 12px;
+  border-radius: 9px;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+}
+.notificacao:hover { background: var(--papel); }
+.notificacao.nao-lida { border-left-color: var(--dourado); background: #fffbf0; }
+.notificacao strong { display: block; font-size: .85rem; margin-bottom: 2px; }
+.notificacao span   { font-size: .79rem; color: var(--texto-suave); line-height: 1.4; }
+.notificacao time   { display: block; font-size: .72rem; color: var(--texto-suave); margin-top: 4px; }
+
+/* ------------------------------------------------------------- vazios */
+
+.vazio {
+  text-align: center;
+  padding: 34px 18px;
+  color: var(--texto-suave);
+  font-size: .88rem;
+}
+.vazio .simbolo { font-size: 2rem; display: block; margin-bottom: 10px; opacity: .55; }
+
+/* ---------------------------------------------------------- esqueleto */
+
+.esqueleto {
+  background: linear-gradient(90deg, #eef1f6 25%, #e3e8f1 37%, #eef1f6 63%);
+  background-size: 400% 100%;
+  animation: brilha 1.3s ease infinite;
+  border-radius: 8px;
+}
+@keyframes brilha { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+
+/* ------------------------------------------------------------- toast */
+
+.toast {
+  position: fixed; left: 50%; bottom: 24px;
+  transform: translate(-50%, 130%);
+  z-index: 90;
+  max-width: calc(100vw - 32px);
+  padding: 12px 18px;
+  border-radius: var(--raio-p);
+  background: var(--marinho-800); color: #fff;
+  font-size: .88rem; font-weight: 550;
+  box-shadow: var(--sombra-alta);
+  transition: transform .28s cubic-bezier(.2,.8,.3,1);
+}
+.toast.visivel { transform: translate(-50%, 0); }
+.toast.erro { background: #8c1c13; }
+.toast.ok   { background: var(--verde); }
