@@ -1,1 +1,0 @@
-# lideranca_faama
