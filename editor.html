@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#012056">
+<title>Editor de Requisitos — App de Liderança</title>
+<link rel="icon" href="assets/icone-192.png">
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+
+<main class="conteudo">
+
+  <!-- =============================================== LISTA DOS 5 FORMULÁRIOS -->
+  <section class="tela ativa" id="tela-lista">
+    <button class="voltar-pagina" onclick="location.href='inicio.html'">← Voltar ao início</button>
+
+    <div class="cabecalho-pagina">
+      <h1>Editor de Requisitos</h1>
+    </div>
+
+    <p class="saudacao-sub">
+      Os cinco formulários são fixos: não podem ser criados, renomeados nem
+      excluídos. O que se edita aqui são as seções e os requisitos de cada um.
+    </p>
+
+    <div class="grade-formularios" id="grade-formularios">
+      <div class="esqueleto" style="height:78px"></div>
+      <div class="esqueleto" style="height:78px"></div>
+    </div>
+  </section>
+
+  <!-- ====================================================== EDIÇÃO DE UM FORM -->
+  <section class="tela" id="tela-editor">
+    <button class="voltar-pagina" id="voltar-lista">← Voltar aos formulários</button>
+
+    <div class="cabecalho-formulario">
+      <img src="assets/logo.png" alt="">
+      <div>
+        <h2 id="titulo-formulario">—</h2>
+        <small>Cabeçalho fixo — não editável</small>
+      </div>
+    </div>
+
+    <div id="aviso-editor" class="aviso"></div>
+
+    <div id="lista-secoes"></div>
+
+    <button class="botao-adicionar destaque" id="btn-nova-secao">
+      + Adicionar nova seção
+    </button>
+  </section>
+
+</main>
+
+<div class="fundo-modal" id="fundo-modal">
+  <div class="modal" id="caixa-modal"></div>
+</div>
+
+<script type="module" src="js/editor.js"></script>
+</body>
+</html>
