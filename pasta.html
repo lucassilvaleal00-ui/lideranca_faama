@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#012056">
+<title>Pasta — App de Liderança</title>
+<link rel="icon" href="assets/icone-192.png">
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+
+<main class="conteudo">
+  <button class="voltar-pagina" id="btn-voltar">← Voltar</button>
+
+  <div class="faixa-pasta" id="faixa">
+    <img class="logo" src="assets/logo.png" alt="">
+    <div>
+      <h1 id="titulo-pasta">Carregando…</h1>
+      <small id="sub-pasta">&nbsp;</small>
+    </div>
+    <div class="progresso-geral">
+      <strong id="conta-geral">—</strong>
+      <div class="trilho"><i id="barra-geral" style="width:0%"></i></div>
+    </div>
+  </div>
+
+  <div id="aviso-papel"></div>
+  <div id="aviso-topo" class="aviso"></div>
+
+  <div id="conteudo-pasta">
+    <div class="esqueleto" style="height:90px;margin-bottom:12px"></div>
+    <div class="esqueleto" style="height:90px;margin-bottom:12px"></div>
+  </div>
+</main>
+
+<div class="fundo-modal" id="fundo-modal">
+  <div class="modal" id="caixa-modal"></div>
+</div>
+
+<script type="module" src="js/pasta.js"></script>
+</body>
+</html>
