@@ -879,3 +879,152 @@ table.dados td.nome-celula {
   .armazenamento { flex-wrap: wrap; }
   .armazenamento .trilho { order: 3; flex-basis: 100%; }
 }
+
+/* =====================================================================
+   EDITOR DE REQUISITOS
+   ===================================================================== */
+
+.grade-formularios {
+  display: grid; grid-template-columns: 1fr; gap: 12px;
+}
+@media (min-width: 620px) { .grade-formularios { grid-template-columns: repeat(2, 1fr); } }
+
+.cartao-formulario {
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px; width: 100%; text-align: left;
+  background: var(--branco); border: 1px solid var(--borda);
+  border-radius: var(--raio); box-shadow: var(--sombra);
+  cursor: pointer; font-family: inherit;
+  transition: transform .12s, border-color .12s, box-shadow .12s;
+}
+.cartao-formulario:hover {
+  transform: translateY(-2px); border-color: var(--azul-claro);
+  box-shadow: 0 6px 20px rgba(1,32,86,.13);
+}
+.cartao-formulario .faixa {
+  width: 5px; align-self: stretch; border-radius: 99px; flex: none;
+}
+.cartao-formulario .faixa.aventureiros  { background: #1565c0; }
+.cartao-formulario .faixa.desbravadores { background: var(--vermelho); }
+.cartao-formulario .faixa.jovens        { background: var(--dourado); }
+.cartao-formulario h3 { margin: 0 0 3px; font-size: .97rem; font-weight: 650; }
+.cartao-formulario p  { margin: 0; font-size: .8rem; color: var(--texto-suave); }
+
+/* ------------------------------------------------------- cabeçalho fixo */
+
+.cabecalho-formulario {
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px 18px; margin-bottom: 20px;
+  background: linear-gradient(100deg, var(--marinho-800), var(--marinho-600));
+  color: #fff; border-radius: var(--raio);
+  box-shadow: var(--sombra);
+}
+.cabecalho-formulario img { width: 46px; height: 46px; border-radius: 11px; flex: none; }
+.cabecalho-formulario h2 { margin: 0; font-size: 1.05rem; font-weight: 700; }
+.cabecalho-formulario small { opacity: .78; font-size: .78rem; }
+
+/* ------------------------------------------------------------- seção */
+
+.secao {
+  background: var(--branco); border: 1px solid var(--borda);
+  border-radius: var(--raio); box-shadow: var(--sombra);
+  margin-bottom: 16px; overflow: hidden;
+}
+
+.secao-topo {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 14px;
+  background: var(--papel); border-bottom: 1px solid var(--borda);
+}
+.secao-topo input {
+  flex: 1; border: 1.5px solid transparent; background: transparent;
+  font-weight: 700; font-size: .95rem; color: var(--marinho-800);
+  padding: 7px 9px;
+}
+.secao-topo input:hover  { border-color: var(--borda); background: var(--branco); }
+.secao-topo input:focus  { border-color: var(--azul-claro); background: var(--branco); }
+.secao-topo .conta-req {
+  font-size: .74rem; font-weight: 600; color: var(--texto-suave);
+  background: var(--branco); padding: 3px 9px; border-radius: 99px;
+  border: 1px solid var(--borda); white-space: nowrap;
+}
+
+.secao-corpo { padding: 12px 14px; }
+
+/* --------------------------------------------------------- requisito */
+
+.requisito {
+  border: 1px solid var(--borda); border-radius: var(--raio-p);
+  padding: 13px; margin-bottom: 10px;
+  background: var(--branco);
+}
+.requisito:last-of-type { margin-bottom: 14px; }
+
+.requisito-topo {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+}
+.requisito-topo .ordem {
+  width: 24px; height: 24px; flex: none;
+  display: grid; place-items: center; border-radius: 6px;
+  background: var(--marinho-700); color: #fff;
+  font-size: .74rem; font-weight: 700;
+}
+.requisito-topo input[type=text] {
+  flex: 1; font-weight: 600; font-size: .92rem; padding: 8px 10px;
+}
+
+.requisito-grade {
+  display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 10px;
+}
+@media (min-width: 560px) {
+  .requisito-grade { grid-template-columns: repeat(2, 1fr); }
+  .requisito-grade .largura-total { grid-column: 1 / -1; }
+}
+.requisito-grade label {
+  display: block; font-size: .74rem; font-weight: 600;
+  color: var(--texto-suave); margin-bottom: 5px;
+}
+.requisito-grade input, .requisito-grade select, .requisito-grade textarea {
+  padding: 9px 11px; font-size: .88rem;
+}
+.requisito-grade textarea { min-height: 62px; }
+
+.campo-fixo {
+  display: flex; align-items: center; gap: 7px;
+  padding: 9px 11px; border-radius: var(--raio-p);
+  background: var(--papel); border: 1.5px dashed var(--borda);
+  font-size: .82rem; color: var(--texto-suave);
+}
+
+.requisito-rodape {
+  display: flex; align-items: center; gap: 8px;
+  padding-top: 10px; border-top: 1px solid var(--borda);
+}
+.requisito-rodape .estado {
+  font-size: .76rem; color: var(--texto-suave); margin-right: auto;
+}
+.requisito-rodape .botao { width: auto; padding: 7px 14px; font-size: .82rem; }
+
+.requisito.sujo { border-color: var(--dourado); background: #fffdf5; }
+
+.botao-adicionar {
+  width: 100%; padding: 12px;
+  background: var(--papel); border: 1.5px dashed var(--borda);
+  border-radius: var(--raio-p); cursor: pointer;
+  font-family: inherit; font-size: .88rem; font-weight: 600;
+  color: var(--texto-suave);
+  transition: all .12s;
+}
+.botao-adicionar:hover {
+  border-color: var(--azul-claro); color: var(--marinho-700); background: #f3f7fe;
+}
+.botao-adicionar.destaque {
+  border-color: var(--dourado); color: var(--dourado-esc); background: #fffbf0;
+}
+
+.aviso-uso {
+  display: flex; align-items: flex-start; gap: 8px;
+  font-size: .78rem; color: #8a6200;
+  background: #fff3d6; border: 1px solid #f2ddad;
+  border-radius: 8px; padding: 8px 10px; margin-bottom: 10px;
+}
