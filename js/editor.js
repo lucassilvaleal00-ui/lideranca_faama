@@ -175,12 +175,18 @@ function desenharSecoes() {
 
 /** Bloco de campos — o mesmo para um requisito sem alínea e para uma alínea. */
 function camposEditaveis(o) {
+  const simNao = (campo, ligado) => `
+    <select data-campo="${campo}">
+      <option value="true"  ${ligado  ? 'selected' : ''}>Sim</option>
+      <option value="false" ${!ligado ? 'selected' : ''}>Não</option>
+    </select>`;
+
   return `
     <div class="requisito-grade">
       <div class="largura-total">
         <div class="campo-fixo">
-          📅 <span><strong>Data do cumprimento</strong> — sempre presente,
-          o candidato preenche em cada parte.</span>
+          🧩 <span>O candidato precisa preencher o que estiver marcado como
+          <strong>Sim</strong> abaixo. Pelo menos um dos três.</span>
         </div>
       </div>
 
@@ -194,14 +200,22 @@ function camposEditaveis(o) {
       </div>
 
       <div>
-        <label>Permitir fotos?</label>
-        <select data-campo="permitir_fotos">
-          <option value="true"  ${o.permitir_fotos  ? 'selected' : ''}>Sim</option>
-          <option value="false" ${!o.permitir_fotos ? 'selected' : ''}>Não</option>
-        </select>
+        <label>Pedir data?</label>
+        ${simNao('exigir_data', o.exigir_data !== false)}
       </div>
 
-      <div class="largura-total">
+      <div>
+        <label>Pedir descrição?</label>
+        ${simNao('exigir_descricao', o.exigir_descricao !== false)}
+      </div>
+
+      <div>
+        <label>Pedir foto?</label>
+        ${simNao('permitir_fotos', o.permitir_fotos)}
+      </div>
+
+      <div class="largura-total" data-bloco-descricao
+           ${o.exigir_descricao !== false ? '' : 'hidden'}>
         <label>Dica de cumprimento <span style="font-weight:400">(vira "Orientação da descrição")</span></label>
         <textarea data-campo="dica_cumprimento"
                   placeholder="Ex.: descreva o local, a data e quantas pessoas participaram."
@@ -309,9 +323,18 @@ function marcarSujo(el) {
   if (estadoEl) estadoEl.textContent = 'Alterações não salvas';
 }
 
-function alternarBlocoFoto(el) {
+/** A dica só faz sentido quando o campo correspondente é pedido. */
+const BLOCO_DA_CHAVE = {
+  permitir_fotos:   '[data-bloco-foto]',
+  exigir_descricao: '[data-bloco-descricao]'
+};
+
+function alternarBloco(el) {
+  const seletor = BLOCO_DA_CHAVE[el.dataset.campo];
+  if (!seletor) return;
+
   const dono = donoDoCampo(el);
-  const bloco = dono?.querySelector(':scope > .requisito-grade [data-bloco-foto]');
+  const bloco = dono?.querySelector(`:scope > .requisito-grade ${seletor}`);
   if (bloco) bloco.hidden = el.value !== 'true';
 }
 
@@ -321,8 +344,8 @@ $('#lista-secoes').addEventListener('input', e => {
 });
 
 $('#lista-secoes').addEventListener('change', e => {
-  if (e.target.dataset.campo !== 'permitir_fotos') return;
-  alternarBlocoFoto(e.target);
+  if (!e.target.dataset.campo) return;
+  alternarBloco(e.target);
   marcarSujo(e.target);
 });
 
@@ -476,11 +499,22 @@ function lerCampos(cartao, seletorGrade) {
 
   return {
     qtd_partes: Number(ler('qtd_partes')) || 1,
+    exigir_data: ler('exigir_data') === 'true',
+    exigir_descricao: ler('exigir_descricao') === 'true',
     permitir_fotos: ler('permitir_fotos') === 'true',
     dica_cumprimento: ler('dica_cumprimento').trim() || null,
     dica_foto: ler('dica_foto').trim() || null
   };
 }
+
+/** Pelo menos um dos três campos precisa ser pedido. */
+function pedeAlgumCampo(c) {
+  return c.exigir_data || c.exigir_descricao || c.permitir_fotos;
+}
+
+const AVISO_VAZIO =
+  'Marque "Sim" em pelo menos um dos três: data, descrição ou foto. ' +
+  'Senão não sobra nada para o candidato preencher.';
 
 async function salvarRequisito(id, botao) {
   const cartao = botao.closest('.requisito');
@@ -491,12 +525,17 @@ async function salvarRequisito(id, botao) {
 
   if (!titulo) { toast('O título do requisito é obrigatório.', 'erro'); return; }
 
-  ocupado(botao, true, 'Salvar');
-
   // com alíneas, o requisito guarda apenas o enunciado
   const mudanca = req.alineas.length
     ? { titulo }
     : { titulo, ...lerCampos(cartao, '.requisito-grade') };
+
+  if (!req.alineas.length && !pedeAlgumCampo(mudanca)) {
+    toast(AVISO_VAZIO, 'erro');
+    return;
+  }
+
+  ocupado(botao, true, 'Salvar');
 
   const { error } = await sb.from('requisitos').update(mudanca).eq('id', id);
 
@@ -524,6 +563,8 @@ async function novaAlinea(requisitoId, botao) {
         requisito_id: requisitoId,
         titulo: 'Nova alínea',
         qtd_partes: req.qtd_partes,
+        exigir_data: req.exigir_data,
+        exigir_descricao: req.exigir_descricao,
         permitir_fotos: req.permitir_fotos,
         dica_cumprimento: req.dica_cumprimento,
         dica_foto: req.dica_foto,
@@ -533,6 +574,8 @@ async function novaAlinea(requisitoId, botao) {
         requisito_id: requisitoId,
         titulo: 'Nova alínea',
         qtd_partes: 1,
+        exigir_data: true,
+        exigir_descricao: true,
         permitir_fotos: true,
         ordem: req.alineas.length + 1
       };
@@ -560,9 +603,12 @@ async function salvarAlinea(id, botao) {
 
   if (!titulo) { toast('O texto da alínea é obrigatório.', 'erro'); return; }
 
+  const mudanca = { titulo, ...lerCampos(cartao, '.requisito-grade') };
+
+  if (!pedeAlgumCampo(mudanca)) { toast(AVISO_VAZIO, 'erro'); return; }
+
   ocupado(botao, true, 'Salvar');
 
-  const mudanca = { titulo, ...lerCampos(cartao, '.requisito-grade') };
   const { error } = await sb.from('alineas').update(mudanca).eq('id', id);
 
   ocupado(botao, false, 'Salvar');

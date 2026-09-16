@@ -28,6 +28,19 @@ const letra = n => String.fromCharCode(96 + n);
 /** Chave de uma unidade: requisito sozinho ou requisito+alínea. */
 const chaveUnidade = (requisitoId, alineaId) => `${requisitoId}:${alineaId ?? ''}`;
 
+/* Cada unidade escolhe quais dos três campos pede. Uma parte só está
+   completa quando o que foi pedido está preenchido — nem mais, nem menos. */
+const pedeData = u => u.exigir_data !== false;
+const pedeDesc = u => u.exigir_descricao !== false;
+const pedeFoto = u => !!u.permitir_fotos;
+
+function parteCompleta(u, p) {
+  if (pedeData(u) && !p.data_cumprimento) return false;
+  if (pedeDesc(u) && !(p.descricao ?? '').trim()) return false;
+  if (pedeFoto(u) && !p.foto_path) return false;
+  return true;
+}
+
 /* ------------------------------------------------------------ utilidades */
 
 function ocupado(botao, sim, texto) {
@@ -230,9 +243,7 @@ function cartaoUnidade(u, tituloVisivel) {
   const temCorrecao = !!resposta?.correcao;
   const partes = resposta?.partes ?? [];
 
-  const prontas = partes.filter(p =>
-    p.data_cumprimento && (p.descricao ?? '').trim() &&
-    (!u.permitir_fotos || p.foto_path)).length;
+  const prontas = partes.filter(p => parteCompleta(u, p)).length;
 
   const classe = temCorrecao && status !== 'aprovado' ? 'corrigido' : status;
 
@@ -274,10 +285,11 @@ function cartaoUnidade(u, tituloVisivel) {
 
 function blocoParte(u, parte, i, status) {
   const travado = status === 'aprovado' || !estado.souDono;
-  const completa = parte.data_cumprimento && (parte.descricao ?? '').trim() &&
-                   (!u.permitir_fotos || parte.foto_path);
-
+  const completa = parteCompleta(u, parte);
   const urlFoto = parte.foto_path ? estado.urlsFoto.get(parte.foto_path) : null;
+
+  // só a foto pedida, e nada mais: ela ocupa a largura inteira
+  const duasColunas = pedeFoto(u) && pedeDesc(u);
 
   return `
   <div class="parte" data-parte="${parte.id ?? ''}" data-ordem="${i + 1}">
@@ -289,22 +301,24 @@ function blocoParte(u, parte, i, status) {
         </span>
       </div>` : ''}
 
-    <div style="margin-bottom:12px">
-      <label>Data do cumprimento</label>
-      <input type="date" data-campo="data" value="${esc(parte.data_cumprimento ?? '')}"
-             ${travado ? 'disabled' : ''}>
-    </div>
+    ${pedeData(u) ? `
+      <div style="margin-bottom:12px">
+        <label>Data do cumprimento</label>
+        <input type="date" data-campo="data" value="${esc(parte.data_cumprimento ?? '')}"
+               ${travado ? 'disabled' : ''}>
+      </div>` : ''}
 
-    <div class="parte-grade ${u.permitir_fotos ? 'com-foto' : ''}">
-      <div>
-        <label>Descrição</label>
-        <textarea data-campo="descricao" ${travado ? 'disabled' : ''}
-          placeholder="Descreva o que foi feito…">${esc(parte.descricao ?? '')}</textarea>
-        ${u.dica_cumprimento
-          ? `<div class="orientacao">${esc(u.dica_cumprimento)}</div>` : ''}
-      </div>
+    <div class="parte-grade ${duasColunas ? 'com-foto' : ''}">
+      ${pedeDesc(u) ? `
+        <div>
+          <label>Descrição</label>
+          <textarea data-campo="descricao" ${travado ? 'disabled' : ''}
+            placeholder="Descreva o que foi feito…">${esc(parte.descricao ?? '')}</textarea>
+          ${u.dica_cumprimento
+            ? `<div class="orientacao">${esc(u.dica_cumprimento)}</div>` : ''}
+        </div>` : ''}
 
-      ${u.permitir_fotos ? `
+      ${pedeFoto(u) ? `
         <div>
           <label>Foto</label>
           <div class="caixa-foto ${travado ? 'somente-leitura' : ''}" data-caixa-foto>
