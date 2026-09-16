@@ -2,15 +2,15 @@
    Pasta — a mesma tela serve aos dois papéis:
 
    CANDIDATO (dono da pasta): preenche data, descrição e foto de cada
-     parte, e marca o requisito como "Concluído" quando todas estiverem
-     completas. Requisito aprovado fica travado (o banco também recusa).
+     parte, e marca como "Concluído" quando todas estiverem completas.
+     O que está aprovado fica travado (o banco também recusa).
 
    REVISOR / ADMINISTRADOR: não altera nada do conteúdo. Só aprova,
      devolve para pendente e escreve a correção.
 
-   Decisão 9: a quantidade de partes é FIXA. As N partes já nascem com a
-   resposta, então o candidato vê desde o início quantas faltam — não há
-   "adicionar parte", há "preencher a parte 3 de 5".
+   A UNIDADE preenchível é: um requisito sem alíneas, ou cada alínea de
+   um requisito que tenha alíneas. Um requisito com alíneas é só o
+   enunciado que agrupa.
    ===================================================================== */
 
 import { sb, exigirSessao, traduzErro } from './cliente.js';
@@ -21,6 +21,12 @@ const estado = {
   eu: null, pasta: null, secoes: [], respostas: new Map(),
   souDono: false, podeAvaliar: false, urlsFoto: new Map(), pendentesFoto: new Map()
 };
+
+const ROTULO = { pendente: 'Pendente', concluido: 'Concluído', aprovado: 'Aprovado' };
+const letra = n => String.fromCharCode(96 + n);
+
+/** Chave de uma unidade: requisito sozinho ou requisito+alínea. */
+const chaveUnidade = (requisitoId, alineaId) => `${requisitoId}:${alineaId ?? ''}`;
 
 /* ------------------------------------------------------------ utilidades */
 
@@ -43,8 +49,6 @@ $('#fundo-modal').addEventListener('click', e => {
   if (e.target.id === 'fundo-modal') fecharModal();
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') fecharModal(); });
-
-const ROTULO = { pendente: 'Pendente', concluido: 'Concluído', aprovado: 'Aprovado' };
 
 /* =============================================================== CARGA */
 
@@ -98,7 +102,7 @@ async function carregar() {
 async function carregarConteudo() {
   const [sec, res] = await Promise.all([
     sb.from('secoes')
-      .select('*, requisitos(*)')
+      .select('*, requisitos(*, alineas(*))')
       .eq('formulario_id', estado.pasta.formulario_id)
       .eq('ativo', true).order('ordem'),
 
@@ -111,13 +115,19 @@ async function carregarConteudo() {
 
   estado.secoes = (sec.data ?? []).map(s => ({
     ...s,
-    requisitos: (s.requisitos ?? []).filter(r => r.ativo).sort((a, b) => a.ordem - b.ordem)
+    requisitos: (s.requisitos ?? [])
+      .filter(r => r.ativo)
+      .sort((a, b) => a.ordem - b.ordem)
+      .map(r => ({
+        ...r,
+        alineas: (r.alineas ?? []).filter(a => a.ativo).sort((a, b) => a.ordem - b.ordem)
+      }))
   })).filter(s => s.requisitos.length);
 
   estado.respostas = new Map();
   for (const r of res.data ?? []) {
     r.partes = (r.partes ?? []).sort((a, b) => a.ordem - b.ordem);
-    estado.respostas.set(r.requisito_id, r);
+    estado.respostas.set(chaveUnidade(r.requisito_id, r.alinea_id), r);
   }
 
   await assinarFotos();
@@ -138,12 +148,30 @@ async function assinarFotos() {
   }
 }
 
+/* ------------------------------------------------ unidades preenchíveis */
+
+/** Lista plana de unidades de um requisito: ele mesmo, ou suas alíneas. */
+function unidadesDo(req) {
+  if (!req.alineas.length) {
+    return [{ ...req, requisitoId: req.id, alineaId: null, rotulo: null }];
+  }
+  return req.alineas.map((a, i) => ({
+    ...a, requisitoId: req.id, alineaId: a.id, rotulo: letra(i + 1)
+  }));
+}
+
+function unidadesDaSecao(secao) {
+  return secao.requisitos.flatMap(unidadesDo);
+}
+
 /* ============================================================= DESENHO */
 
 function progressoSecao(secao) {
-  const total = secao.requisitos.length;
-  const aprovados = secao.requisitos
-    .filter(r => estado.respostas.get(r.id)?.status === 'aprovado').length;
+  const unidades = unidadesDaSecao(secao);
+  const total = unidades.length;
+  const aprovados = unidades.filter(u =>
+    estado.respostas.get(chaveUnidade(u.requisitoId, u.alineaId))?.status === 'aprovado'
+  ).length;
   return { total, aprovados, pct: total ? Math.round(100 * aprovados / total) : 0 };
 }
 
@@ -156,7 +184,7 @@ function desenhar() {
     return;
   }
 
-  const totalGeral = estado.secoes.reduce((n, s) => n + s.requisitos.length, 0);
+  const totalGeral = estado.secoes.reduce((n, s) => n + progressoSecao(s).total, 0);
   const aprovGeral = estado.secoes.reduce((n, s) => n + progressoSecao(s).aprovados, 0);
   const pctGeral = totalGeral ? Math.round(100 * aprovGeral / totalGeral) : 0;
 
@@ -174,31 +202,49 @@ function desenhar() {
           <span>${p.pct}%</span>
         </div>
       </div>
-      ${s.requisitos.map(r => cartaoRequisito(r)).join('')}
+      ${s.requisitos.map((r, i) => blocoRequisito(r, i)).join('')}
     </section>`;
   }).join('');
 }
 
-function cartaoRequisito(req) {
-  const resposta = estado.respostas.get(req.id);
+function blocoRequisito(req, indice) {
+  // sem alíneas: um cartão só, o próprio requisito
+  if (!req.alineas.length) {
+    return cartaoUnidade(unidadesDo(req)[0], `${indice + 1}. ${req.titulo}`);
+  }
+
+  // com alíneas: enunciado agrupando os cartões
+  return `
+  <div class="req-grupo">
+    <div class="titulo-grupo">${indice + 1}. ${esc(req.titulo)}</div>
+    <div class="corpo-grupo">
+      ${unidadesDo(req).map(u => cartaoUnidade(u, `${u.rotulo}) ${u.titulo}`)).join('')}
+    </div>
+  </div>`;
+}
+
+function cartaoUnidade(u, tituloVisivel) {
+  const chave = chaveUnidade(u.requisitoId, u.alineaId);
+  const resposta = estado.respostas.get(chave);
   const status = resposta?.status ?? 'pendente';
   const temCorrecao = !!resposta?.correcao;
   const partes = resposta?.partes ?? [];
 
   const prontas = partes.filter(p =>
     p.data_cumprimento && (p.descricao ?? '').trim() &&
-    (!req.permitir_fotos || p.foto_path)).length;
+    (!u.permitir_fotos || p.foto_path)).length;
 
   const classe = temCorrecao && status !== 'aprovado' ? 'corrigido' : status;
 
   return `
-  <article class="req-cartao ${classe}" data-req="${req.id}">
+  <article class="req-cartao ${classe}" data-unidade="${chave}">
     <div class="req-cabeca" data-abrir>
+      ${u.rotulo ? `<span class="marca-alinea">${u.rotulo}</span>` : ''}
       <div>
-        <h3>${esc(req.titulo)}</h3>
+        <h3>${esc(tituloVisivel)}</h3>
         <div class="meta">
-          ${req.qtd_partes > 1
-            ? `${prontas} de ${req.qtd_partes} partes preenchidas`
+          ${u.qtd_partes > 1
+            ? `${prontas} de ${u.qtd_partes} partes preenchidas`
             : (prontas ? 'Preenchido' : 'Não preenchido')}
           ${temCorrecao && status !== 'aprovado' ? ' · <strong>tem correção</strong>' : ''}
         </div>
@@ -216,28 +262,28 @@ function cartaoRequisito(req) {
           <p>${esc(resposta.correcao)}</p>
         </div>` : ''}
 
-      ${Array.from({ length: req.qtd_partes }, (_, i) => {
+      ${Array.from({ length: u.qtd_partes }, (_, i) => {
         const parte = partes[i] ?? { ordem: i + 1 };
-        return blocoParte(req, parte, i, status);
+        return blocoParte(u, parte, i, status);
       }).join('')}
 
-      ${rodapeRequisito(req, resposta, status, prontas)}
+      ${rodapeUnidade(u, resposta, status, prontas)}
     </div>
   </article>`;
 }
 
-function blocoParte(req, parte, i, status) {
+function blocoParte(u, parte, i, status) {
   const travado = status === 'aprovado' || !estado.souDono;
   const completa = parte.data_cumprimento && (parte.descricao ?? '').trim() &&
-                   (!req.permitir_fotos || parte.foto_path);
+                   (!u.permitir_fotos || parte.foto_path);
 
   const urlFoto = parte.foto_path ? estado.urlsFoto.get(parte.foto_path) : null;
 
   return `
   <div class="parte" data-parte="${parte.id ?? ''}" data-ordem="${i + 1}">
-    ${req.qtd_partes > 1 ? `
+    ${u.qtd_partes > 1 ? `
       <div class="parte-cabeca">
-        <span class="rotulo">Parte ${i + 1} de ${req.qtd_partes}</span>
+        <span class="rotulo">Parte ${i + 1} de ${u.qtd_partes}</span>
         <span class="completa ${completa ? 'sim' : 'nao'}">
           ${completa ? '✓ completa' : 'incompleta'}
         </span>
@@ -249,16 +295,16 @@ function blocoParte(req, parte, i, status) {
              ${travado ? 'disabled' : ''}>
     </div>
 
-    <div class="parte-grade ${req.permitir_fotos ? 'com-foto' : ''}">
+    <div class="parte-grade ${u.permitir_fotos ? 'com-foto' : ''}">
       <div>
         <label>Descrição</label>
         <textarea data-campo="descricao" ${travado ? 'disabled' : ''}
           placeholder="Descreva o que foi feito…">${esc(parte.descricao ?? '')}</textarea>
-        ${req.dica_cumprimento
-          ? `<div class="orientacao">${esc(req.dica_cumprimento)}</div>` : ''}
+        ${u.dica_cumprimento
+          ? `<div class="orientacao">${esc(u.dica_cumprimento)}</div>` : ''}
       </div>
 
-      ${req.permitir_fotos ? `
+      ${u.permitir_fotos ? `
         <div>
           <label>Foto</label>
           <div class="caixa-foto ${travado ? 'somente-leitura' : ''}" data-caixa-foto>
@@ -272,14 +318,15 @@ function blocoParte(req, parte, i, status) {
             ${travado ? '' :
               '<input type="file" accept="image/jpeg,image/png" hidden data-arquivo>'}
           </div>
-          ${req.dica_foto ? `<div class="orientacao">${esc(req.dica_foto)}</div>` : ''}
+          ${u.dica_foto ? `<div class="orientacao">${esc(u.dica_foto)}</div>` : ''}
         </div>` : ''}
     </div>
   </div>`;
 }
 
-function rodapeRequisito(req, resposta, status, prontas) {
-  const completo = prontas >= req.qtd_partes;
+function rodapeUnidade(u, resposta, status, prontas) {
+  const chave = chaveUnidade(u.requisitoId, u.alineaId);
+  const completo = prontas >= u.qtd_partes;
 
   if (estado.podeAvaliar) {
     return `
@@ -291,9 +338,9 @@ function rodapeRequisito(req, resposta, status, prontas) {
           : 'O candidato ainda não enviou'}
       </span>
       ${status === 'aprovado'
-        ? `<button class="botao botao-vazado" data-reabrir="${req.id}">Reabrir</button>`
-        : `<button class="botao botao-vazado" data-corrigir="${req.id}">Devolver com correção</button>
-           <button class="botao botao-principal" data-aprovar="${req.id}"
+        ? `<button class="botao botao-vazado" data-reabrir="${chave}">Reabrir</button>`
+        : `<button class="botao botao-vazado" data-corrigir="${chave}">Devolver com correção</button>
+           <button class="botao botao-principal" data-aprovar="${chave}"
                    style="background:var(--verde)">Aprovar</button>`}
     </div>`;
   }
@@ -307,10 +354,10 @@ function rodapeRequisito(req, resposta, status, prontas) {
   return `
   <div class="req-rodape">
     <span class="estado" data-estado>
-      ${completo ? 'Tudo preenchido' : `Faltam ${req.qtd_partes - prontas} parte(s)`}
+      ${completo ? 'Tudo preenchido' : `Faltam ${u.qtd_partes - prontas} parte(s)`}
     </span>
-    <button class="botao botao-vazado" data-salvar="${req.id}">Salvar</button>
-    <button class="botao botao-dourado" data-concluir="${req.id}"
+    <button class="botao botao-vazado" data-salvar="${chave}">Salvar</button>
+    <button class="botao botao-dourado" data-concluir="${chave}"
             ${completo ? '' : 'disabled'}
             title="${completo ? '' : 'Preencha todas as partes primeiro'}">
       ${status === 'concluido' ? 'Reenviar para avaliação' : 'Marcar como concluído'}
@@ -319,6 +366,14 @@ function rodapeRequisito(req, resposta, status, prontas) {
 }
 
 /* ============================================================== EVENTOS */
+
+/** Recupera a unidade a partir da chave "requisitoId:alineaId". */
+function unidadePorChave(chave) {
+  return estado.secoes
+    .flatMap(s => s.requisitos)
+    .flatMap(unidadesDo)
+    .find(u => chaveUnidade(u.requisitoId, u.alineaId) === chave);
+}
 
 $('#conteudo-pasta').addEventListener('click', async e => {
   const cabeca = e.target.closest('[data-abrir]');
@@ -334,8 +389,8 @@ $('#conteudo-pasta').addEventListener('click', async e => {
   if (!b) return;
   const d = b.dataset;
 
-  if (d.salvar)   return salvarRequisito(d.salvar, b, false);
-  if (d.concluir) return salvarRequisito(d.concluir, b, true);
+  if (d.salvar)   return salvarUnidade(d.salvar, b, false);
+  if (d.concluir) return salvarUnidade(d.concluir, b, true);
   if (d.aprovar)  return avaliar(d.aprovar, 'aprovado');
   if (d.reabrir)  return avaliar(d.reabrir, 'pendente');
   if (d.corrigir) return modalCorrecao(d.corrigir);
@@ -353,7 +408,7 @@ $('#conteudo-pasta').addEventListener('change', async e => {
 
   try {
     const { blob } = await comprimir(arquivo);
-    const chave = `${bloco.closest('.req-cartao').dataset.req}:${bloco.dataset.ordem}`;
+    const chave = `${bloco.closest('.req-cartao').dataset.unidade}|${bloco.dataset.ordem}`;
     estado.pendentesFoto.set(chave, blob);
 
     caixa.innerHTML =
@@ -378,20 +433,26 @@ function marcarSujo(bloco) {
 
 /* ============================================================== SALVAR */
 
-async function salvarRequisito(requisitoId, botao, concluir) {
-  const cartao = $(`.req-cartao[data-req="${requisitoId}"]`);
-  const req = estado.secoes.flatMap(s => s.requisitos).find(r => r.id === requisitoId);
-  const texto = botao.textContent.trim();
+async function salvarUnidade(chave, botao, concluir) {
+  const cartao = $(`.req-cartao[data-unidade="${chave}"]`);
+  const u = unidadePorChave(chave);
+  if (!u) return;
 
+  const texto = botao.textContent.trim();
   ocupado(botao, true, texto);
 
   try {
     // 1. garante que a resposta existe (o gatilho cria as partes vazias)
-    let resposta = estado.respostas.get(requisitoId);
+    let resposta = estado.respostas.get(chave);
 
     if (!resposta) {
       const { data: criada, error } = await sb.from('respostas')
-        .insert({ pasta_id: estado.pasta.id, requisito_id: requisitoId, status: 'pendente' })
+        .insert({
+          pasta_id: estado.pasta.id,
+          requisito_id: u.requisitoId,
+          alinea_id: u.alineaId,
+          status: 'pendente'
+        })
         .select('id').single();
 
       if (error) throw error;
@@ -405,13 +466,11 @@ async function salvarRequisito(requisitoId, botao, concluir) {
 
       data.partes = (data.partes ?? []).sort((a, b) => a.ordem - b.ordem);
       resposta = data;
-      estado.respostas.set(requisitoId, resposta);
+      estado.respostas.set(chave, resposta);
     }
 
     // 2. grava cada parte
-    const blocos = $$('.parte', cartao);
-
-    for (const bloco of blocos) {
+    for (const bloco of $$('.parte', cartao)) {
       const ordem = Number(bloco.dataset.ordem);
       const parte = resposta.partes.find(p => p.ordem === ordem);
       if (!parte) continue;
@@ -421,9 +480,8 @@ async function salvarRequisito(requisitoId, botao, concluir) {
 
       const mudanca = { data_cumprimento: data, descricao };
 
-      // foto nova, se houver
-      const chave = `${requisitoId}:${ordem}`;
-      const blob = estado.pendentesFoto.get(chave);
+      const chaveFoto = `${chave}|${ordem}`;
+      const blob = estado.pendentesFoto.get(chaveFoto);
 
       if (blob) {
         const caminho = `${estado.pasta.id}/${resposta.id}/${parte.id}.jpg`;
@@ -434,7 +492,7 @@ async function salvarRequisito(requisitoId, botao, concluir) {
 
         mudanca.foto_path = caminho;
         mudanca.foto_bytes = blob.size;
-        estado.pendentesFoto.delete(chave);
+        estado.pendentesFoto.delete(chaveFoto);
       }
 
       const { error } = await sb.from('partes').update(mudanca).eq('id', parte.id);
@@ -446,13 +504,13 @@ async function salvarRequisito(requisitoId, botao, concluir) {
       const { error } = await sb.from('respostas')
         .update({ status: 'concluido' }).eq('id', resposta.id);
       if (error) throw error;
-      toast('Requisito enviado para avaliação.', 'ok');
+      toast('Enviado para avaliação.', 'ok');
     } else {
       toast('Salvo.', 'ok');
     }
 
     await carregarConteudo();
-    $(`.req-cartao[data-req="${requisitoId}"]`)?.classList.add('aberto');
+    $(`.req-cartao[data-unidade="${chave}"]`)?.classList.add('aberto');
 
   } catch (erro) {
     ocupado(botao, false, texto);
@@ -462,25 +520,27 @@ async function salvarRequisito(requisitoId, botao, concluir) {
 
 /* ============================================================ AVALIAR */
 
-async function avaliar(requisitoId, novoStatus) {
-  const resposta = estado.respostas.get(requisitoId);
-  if (!resposta) { toast('O candidato ainda não enviou nada neste requisito.', 'erro'); return; }
+async function avaliar(chave, novoStatus) {
+  const resposta = estado.respostas.get(chave);
+  if (!resposta) { toast('O candidato ainda não enviou nada aqui.', 'erro'); return; }
 
   const { error } = await sb.from('respostas')
     .update({ status: novoStatus }).eq('id', resposta.id);
 
   if (error) { toast(traduzErro(error), 'erro'); return; }
 
-  toast(novoStatus === 'aprovado' ? 'Requisito aprovado.' : 'Requisito reaberto.', 'ok');
+  toast(novoStatus === 'aprovado' ? 'Aprovado.' : 'Reaberto.', 'ok');
   await carregarConteudo();
-  $(`.req-cartao[data-req="${requisitoId}"]`)?.classList.add('aberto');
+  $(`.req-cartao[data-unidade="${chave}"]`)?.classList.add('aberto');
 }
 
-function modalCorrecao(requisitoId) {
-  const req = estado.secoes.flatMap(s => s.requisitos).find(r => r.id === requisitoId);
-  const resposta = estado.respostas.get(requisitoId);
+function modalCorrecao(chave) {
+  const u = unidadePorChave(chave);
+  const resposta = estado.respostas.get(chave);
 
-  if (!resposta) { toast('O candidato ainda não enviou nada neste requisito.', 'erro'); return; }
+  if (!resposta) { toast('O candidato ainda não enviou nada aqui.', 'erro'); return; }
+
+  const nome = u.rotulo ? `${u.rotulo}) ${u.titulo}` : u.titulo;
 
   abrirModal(`
     <div class="modal-topo">
@@ -488,7 +548,7 @@ function modalCorrecao(requisitoId) {
       <button class="fechar" data-fechar>×</button>
     </div>
     <p style="font-size:.88rem;color:var(--texto-suave);margin:0 0 14px">
-      Requisito: <strong>${esc(req.titulo)}</strong>
+      <strong>${esc(nome)}</strong>
     </p>
     <div class="campo">
       <label for="texto-correcao">O que precisa ser ajustado</label>
@@ -497,8 +557,8 @@ function modalCorrecao(requisitoId) {
         >${esc(resposta.correcao ?? '')}</textarea>
     </div>
     <div class="aviso visivel info">
-      O requisito volta para <strong>pendente</strong>, o candidato recebe aviso
-      no aplicativo e também por e-mail.
+      Volta para <strong>pendente</strong>, e o candidato recebe aviso no
+      aplicativo e por e-mail.
     </div>
     <div class="modal-acoes">
       <button class="botao botao-vazado" data-fechar>Cancelar</button>

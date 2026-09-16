@@ -11,7 +11,10 @@
 import { sb, exigirSessao, traduzErro } from './cliente.js';
 import { montarBarra, toast, esc, $, $$ } from './ui.js';
 
-const estado = { formularios: [], atual: null, secoes: [], usoPorRequisito: new Map() };
+const estado = {
+  formularios: [], atual: null, secoes: [],
+  usoPorRequisito: new Map(), usoPorAlinea: new Map()
+};
 
 /* ------------------------------------------------------------ utilidades */
 
@@ -92,7 +95,7 @@ async function abrirFormulario(id) {
 async function carregarSecoes() {
   const { data, error } = await sb
     .from('secoes')
-    .select('*, requisitos(*)')
+    .select('*, requisitos(*, alineas(*))')
     .eq('formulario_id', estado.atual.id)
     .eq('ativo', true)
     .order('ordem');
@@ -104,21 +107,34 @@ async function carregarSecoes() {
     requisitos: (s.requisitos ?? [])
       .filter(r => r.ativo)
       .sort((a, b) => a.ordem - b.ordem)
+      .map(r => ({
+        ...r,
+        alineas: (r.alineas ?? []).filter(a => a.ativo).sort((a, b) => a.ordem - b.ordem)
+      }))
   }));
 
   await medirUso();
   desenharSecoes();
 }
 
-/** Quantos candidatos já responderam cada requisito — muda o aviso de exclusão. */
+/** a, b, c, … a partir da ordem 1, 2, 3 */
+const letra = n => String.fromCharCode(96 + n);
+
+/** Quantos candidatos já responderam cada requisito/alínea — muda o aviso de exclusão. */
 async function medirUso() {
   const ids = estado.secoes.flatMap(s => s.requisitos.map(r => r.id));
   estado.usoPorRequisito = new Map();
+  estado.usoPorAlinea = new Map();
   if (!ids.length) return;
 
-  const { data } = await sb.from('respostas').select('requisito_id').in('requisito_id', ids);
+  const { data } = await sb.from('respostas')
+    .select('requisito_id, alinea_id').in('requisito_id', ids);
+
   for (const r of data ?? []) {
     estado.usoPorRequisito.set(r.requisito_id, (estado.usoPorRequisito.get(r.requisito_id) ?? 0) + 1);
+    if (r.alinea_id) {
+      estado.usoPorAlinea.set(r.alinea_id, (estado.usoPorAlinea.get(r.alinea_id) ?? 0) + 1);
+    }
   }
 }
 
@@ -157,27 +173,9 @@ function desenharSecoes() {
     </section>`).join('');
 }
 
-function cartaoRequisito(r, i, total) {
-  const usos = estado.usoPorRequisito.get(r.id) ?? 0;
-
+/** Bloco de campos — o mesmo para um requisito sem alínea e para uma alínea. */
+function camposEditaveis(o) {
   return `
-  <div class="requisito" data-requisito="${r.id}">
-    <div class="requisito-topo">
-      <span class="ordem">${i + 1}</span>
-      <input type="text" value="${esc(r.titulo)}" data-campo="titulo"
-             placeholder="Título do requisito" aria-label="Título do requisito">
-      <button class="botao-icone" data-subir-req="${r.id}"
-              ${i === 0 ? 'disabled' : ''} title="Subir">↑</button>
-      <button class="botao-icone" data-descer-req="${r.id}"
-              ${i === total - 1 ? 'disabled' : ''} title="Descer">↓</button>
-    </div>
-
-    ${usos ? `<div class="aviso-uso">
-        <span>⚠️</span>
-        <span>${usos} candidato(s) já responderam este requisito. Mudar a
-        quantidade de partes ou excluí-lo afeta o que eles já enviaram.</span>
-      </div>` : ''}
-
     <div class="requisito-grade">
       <div class="largura-total">
         <div class="campo-fixo">
@@ -190,7 +188,7 @@ function cartaoRequisito(r, i, total) {
         <label>Quantidade de partes</label>
         <select data-campo="qtd_partes">
           ${Array.from({ length: 12 }, (_, k) => k + 1).map(n =>
-            `<option value="${n}" ${n === r.qtd_partes ? 'selected' : ''}>
+            `<option value="${n}" ${n === o.qtd_partes ? 'selected' : ''}>
                ${n}${n === 1 ? ' parte' : ' partes'}</option>`).join('')}
         </select>
       </div>
@@ -198,8 +196,8 @@ function cartaoRequisito(r, i, total) {
       <div>
         <label>Permitir fotos?</label>
         <select data-campo="permitir_fotos">
-          <option value="true"  ${r.permitir_fotos  ? 'selected' : ''}>Sim</option>
-          <option value="false" ${!r.permitir_fotos ? 'selected' : ''}>Não</option>
+          <option value="true"  ${o.permitir_fotos  ? 'selected' : ''}>Sim</option>
+          <option value="false" ${!o.permitir_fotos ? 'selected' : ''}>Não</option>
         </select>
       </div>
 
@@ -207,18 +205,86 @@ function cartaoRequisito(r, i, total) {
         <label>Dica de cumprimento <span style="font-weight:400">(vira "Orientação da descrição")</span></label>
         <textarea data-campo="dica_cumprimento"
                   placeholder="Ex.: descreva o local, a data e quantas pessoas participaram."
-                  >${esc(r.dica_cumprimento ?? '')}</textarea>
+                  >${esc(o.dica_cumprimento ?? '')}</textarea>
       </div>
 
-      <div class="largura-total" data-bloco-foto ${r.permitir_fotos ? '' : 'hidden'}>
+      <div class="largura-total" data-bloco-foto ${o.permitir_fotos ? '' : 'hidden'}>
         <label>Dica de foto <span style="font-weight:400">(vira "Orientação da foto")</span></label>
         <textarea data-campo="dica_foto"
                   placeholder="Ex.: a foto precisa mostrar você junto com o grupo."
-                  >${esc(r.dica_foto ?? '')}</textarea>
+                  >${esc(o.dica_foto ?? '')}</textarea>
       </div>
+    </div>`;
+}
+
+function cartaoAlinea(a, i, total) {
+  const usos = estado.usoPorAlinea.get(a.id) ?? 0;
+
+  return `
+  <div class="alinea" data-alinea="${a.id}">
+    <div class="alinea-topo">
+      <span class="letra">${letra(i + 1)}</span>
+      <input type="text" value="${esc(a.titulo)}" data-campo="titulo"
+             placeholder="Texto da alínea" aria-label="Texto da alínea">
+      <button class="botao-icone" data-subir-alinea="${a.id}"
+              ${i === 0 ? 'disabled' : ''} title="Subir">↑</button>
+      <button class="botao-icone" data-descer-alinea="${a.id}"
+              ${i === total - 1 ? 'disabled' : ''} title="Descer">↓</button>
     </div>
 
-    <div class="requisito-rodape">
+    ${usos ? `<div class="aviso-uso">
+        <span>⚠️</span>
+        <span>${usos} candidato(s) já responderam esta alínea.</span>
+      </div>` : ''}
+
+    ${camposEditaveis(a)}
+
+    <div class="alinea-rodape">
+      <span class="estado" data-estado>Salvo</span>
+      <button class="botao-icone perigo" data-excluir-alinea="${a.id}"
+              title="Excluir alínea">🗑️</button>
+      <button class="botao botao-principal" data-salvar-alinea="${a.id}">Salvar</button>
+    </div>
+  </div>`;
+}
+
+function cartaoRequisito(r, i, total) {
+  const usos = estado.usoPorRequisito.get(r.id) ?? 0;
+  const temAlineas = r.alineas.length > 0;
+
+  return `
+  <div class="requisito ${temAlineas ? 'com-alineas' : ''}" data-requisito="${r.id}">
+    <div class="requisito-topo">
+      <span class="ordem">${i + 1}</span>
+      <input type="text" value="${esc(r.titulo)}" data-campo="titulo"
+             placeholder="Título do requisito" aria-label="Título do requisito">
+      <button class="botao-icone" data-subir-req="${r.id}"
+              ${i === 0 ? 'disabled' : ''} title="Subir">↑</button>
+      <button class="botao-icone" data-descer-req="${r.id}"
+              ${i === total - 1 ? 'disabled' : ''} title="Descer">↓</button>
+    </div>
+
+    ${usos && !temAlineas ? `<div class="aviso-uso">
+        <span>⚠️</span>
+        <span>${usos} candidato(s) já responderam este requisito. Mudar a
+        quantidade de partes ou excluí-lo afeta o que eles já enviaram.</span>
+      </div>` : ''}
+
+    ${temAlineas ? `
+      <div class="enunciado">
+        Este requisito é só o enunciado — quem o candidato preenche são as
+        alíneas abaixo, cada uma com os próprios campos.
+      </div>
+      <div class="lista-alineas">
+        ${r.alineas.map((a, k) => cartaoAlinea(a, k, r.alineas.length)).join('')}
+      </div>`
+    : camposEditaveis(r)}
+
+    <button class="botao-alinea" data-nova-alinea="${r.id}">
+      + Adicionar alínea ${temAlineas ? letra(r.alineas.length + 1) : 'a'})
+    </button>
+
+    <div class="requisito-rodape" style="margin-top:10px">
       <span class="estado" data-estado>Salvo</span>
       <button class="botao botao-icone perigo" data-excluir-req="${r.id}"
               style="width:32px;height:32px" title="Excluir requisito">🗑️</button>
@@ -229,25 +295,35 @@ function cartaoRequisito(r, i, total) {
 
 /* ----------------------------------------------------- marcar alterações */
 
+/** A alínea é o dono mais próximo; sem ela, o requisito. */
+function donoDoCampo(el) {
+  return el.closest('.alinea') ?? el.closest('.requisito');
+}
+
+function marcarSujo(el) {
+  const dono = donoDoCampo(el);
+  if (!dono) return;
+  dono.classList.add('sujo');
+  const estadoEl = dono.querySelector(':scope > .alinea-rodape [data-estado]')
+                ?? dono.querySelector(':scope > .requisito-rodape [data-estado]');
+  if (estadoEl) estadoEl.textContent = 'Alterações não salvas';
+}
+
+function alternarBlocoFoto(el) {
+  const dono = donoDoCampo(el);
+  const bloco = dono?.querySelector(':scope > .requisito-grade [data-bloco-foto]');
+  if (bloco) bloco.hidden = el.value !== 'true';
+}
+
 $('#lista-secoes').addEventListener('input', e => {
-  const cartao = e.target.closest('.requisito');
-  if (!cartao) return;
-
-  cartao.classList.add('sujo');
-  cartao.querySelector('[data-estado]').textContent = 'Alterações não salvas';
-
-  if (e.target.dataset.campo === 'permitir_fotos') {
-    cartao.querySelector('[data-bloco-foto]').hidden = e.target.value !== 'true';
-  }
+  if (!e.target.dataset.campo) return;
+  marcarSujo(e.target);
 });
 
 $('#lista-secoes').addEventListener('change', e => {
-  if (e.target.dataset.campo === 'permitir_fotos') {
-    const cartao = e.target.closest('.requisito');
-    cartao.querySelector('[data-bloco-foto]').hidden = e.target.value !== 'true';
-    cartao.classList.add('sujo');
-    cartao.querySelector('[data-estado]').textContent = 'Alterações não salvas';
-  }
+  if (e.target.dataset.campo !== 'permitir_fotos') return;
+  alternarBlocoFoto(e.target);
+  marcarSujo(e.target);
 });
 
 /* título da seção salva ao sair do campo */
@@ -281,6 +357,11 @@ $('#lista-secoes').addEventListener('click', async e => {
   if (d.descerSecao)    return moverSecao(d.descerSecao, +1);
   if (d.subirReq)       return moverRequisito(d.subirReq, -1);
   if (d.descerReq)      return moverRequisito(d.descerReq, +1);
+  if (d.novaAlinea)     return novaAlinea(d.novaAlinea, alvo);
+  if (d.salvarAlinea)   return salvarAlinea(d.salvarAlinea, alvo);
+  if (d.excluirAlinea)  return excluirAlinea(d.excluirAlinea);
+  if (d.subirAlinea)    return moverAlinea(d.subirAlinea, -1);
+  if (d.descerAlinea)   return moverAlinea(d.descerAlinea, +1);
 });
 
 /* --------------------------------------------------------- seções */
@@ -388,34 +469,167 @@ async function novoRequisito(secaoId, botao) {
   ultimo?.querySelector('[data-campo="titulo"]')?.select();
 }
 
+/** Lê só os campos próprios do bloco, ignorando os das alíneas de dentro. */
+function lerCampos(cartao, seletorGrade) {
+  const ler = campo =>
+    cartao.querySelector(`:scope > ${seletorGrade} [data-campo="${campo}"]`)?.value ?? '';
+
+  return {
+    qtd_partes: Number(ler('qtd_partes')) || 1,
+    permitir_fotos: ler('permitir_fotos') === 'true',
+    dica_cumprimento: ler('dica_cumprimento').trim() || null,
+    dica_foto: ler('dica_foto').trim() || null
+  };
+}
+
 async function salvarRequisito(id, botao) {
   const cartao = botao.closest('.requisito');
-  const ler = campo => cartao.querySelector(`[data-campo="${campo}"]`)?.value ?? '';
+  const req = estado.secoes.flatMap(s => s.requisitos).find(r => r.id === id);
 
-  const titulo = ler('titulo').trim();
+  const titulo = cartao
+    .querySelector(':scope > .requisito-topo [data-campo="titulo"]').value.trim();
+
   if (!titulo) { toast('O título do requisito é obrigatório.', 'erro'); return; }
 
   ocupado(botao, true, 'Salvar');
 
-  const { error } = await sb.from('requisitos').update({
-    titulo,
-    qtd_partes: Number(ler('qtd_partes')),
-    permitir_fotos: ler('permitir_fotos') === 'true',
-    dica_cumprimento: ler('dica_cumprimento').trim() || null,
-    dica_foto: ler('dica_foto').trim() || null
-  }).eq('id', id);
+  // com alíneas, o requisito guarda apenas o enunciado
+  const mudanca = req.alineas.length
+    ? { titulo }
+    : { titulo, ...lerCampos(cartao, '.requisito-grade') };
+
+  const { error } = await sb.from('requisitos').update(mudanca).eq('id', id);
 
   ocupado(botao, false, 'Salvar');
-
   if (error) { toast(traduzErro(error), 'erro'); return; }
 
   cartao.classList.remove('sujo');
-  cartao.querySelector('[data-estado]').textContent = 'Salvo';
+  cartao.querySelector(':scope > .requisito-rodape [data-estado]').textContent = 'Salvo';
   toast('Requisito salvo.', 'ok');
+  Object.assign(req, mudanca);
+}
 
-  const secao = estado.secoes.find(s => s.requisitos.some(r => r.id === id));
-  const req = secao?.requisitos.find(r => r.id === id);
-  if (req) Object.assign(req, { titulo, qtd_partes: Number(ler('qtd_partes')) });
+/* ------------------------------------------------------------ alíneas */
+
+async function novaAlinea(requisitoId, botao) {
+  const req = estado.secoes.flatMap(s => s.requisitos).find(r => r.id === requisitoId);
+  const primeira = req.alineas.length === 0;
+
+  ocupado(botao, true, botao.textContent);
+
+  // Na primeira alínea, os campos que estavam no requisito descem para ela —
+  // é o que o administrador acabou de configurar, não se perde.
+  const nova = primeira
+    ? {
+        requisito_id: requisitoId,
+        titulo: 'Nova alínea',
+        qtd_partes: req.qtd_partes,
+        permitir_fotos: req.permitir_fotos,
+        dica_cumprimento: req.dica_cumprimento,
+        dica_foto: req.dica_foto,
+        ordem: 1
+      }
+    : {
+        requisito_id: requisitoId,
+        titulo: 'Nova alínea',
+        qtd_partes: 1,
+        permitir_fotos: true,
+        ordem: req.alineas.length + 1
+      };
+
+  const { error } = await sb.from('alineas').insert(nova);
+
+  if (error) { ocupado(botao, false, '+ Adicionar alínea'); toast(traduzErro(error), 'erro'); return; }
+
+  await carregarSecoes();
+
+  const cartoes = $$(`[data-requisito="${requisitoId}"] .alinea`);
+  const ultima = cartoes[cartoes.length - 1];
+  ultima?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  ultima?.querySelector('[data-campo="titulo"]')?.select();
+
+  if (primeira) {
+    toast('Alínea a) criada com os campos que estavam no requisito.', 'ok');
+  }
+}
+
+async function salvarAlinea(id, botao) {
+  const cartao = botao.closest('.alinea');
+  const titulo = cartao
+    .querySelector(':scope > .alinea-topo [data-campo="titulo"]').value.trim();
+
+  if (!titulo) { toast('O texto da alínea é obrigatório.', 'erro'); return; }
+
+  ocupado(botao, true, 'Salvar');
+
+  const mudanca = { titulo, ...lerCampos(cartao, '.requisito-grade') };
+  const { error } = await sb.from('alineas').update(mudanca).eq('id', id);
+
+  ocupado(botao, false, 'Salvar');
+  if (error) { toast(traduzErro(error), 'erro'); return; }
+
+  cartao.classList.remove('sujo');
+  cartao.querySelector(':scope > .alinea-rodape [data-estado]').textContent = 'Salvo';
+  toast('Alínea salva.', 'ok');
+
+  const alinea = estado.secoes.flatMap(s => s.requisitos)
+    .flatMap(r => r.alineas).find(a => a.id === id);
+  if (alinea) Object.assign(alinea, mudanca);
+}
+
+async function excluirAlinea(id) {
+  const req = estado.secoes.flatMap(s => s.requisitos)
+    .find(r => r.alineas.some(a => a.id === id));
+  const alinea = req.alineas.find(a => a.id === id);
+  const usos = estado.usoPorAlinea.get(id) ?? 0;
+
+  abrirModal(`
+    <div class="modal-topo">
+      <h2>Excluir alínea</h2><button class="fechar" data-fechar>×</button>
+    </div>
+    <p style="font-size:.9rem;line-height:1.55">
+      Excluir <strong>${esc(alinea.titulo)}</strong>?
+    </p>
+    ${usos
+      ? `<div class="aviso visivel info" style="margin-top:12px">
+           <strong>${usos} candidato(s)</strong> já responderam esta alínea.
+           O que enviaram <strong>não será apagado</strong> — ela só deixa de
+           aparecer para quem ainda não começou.</div>`
+      : '<div class="aviso visivel info" style="margin-top:12px">Ninguém respondeu esta alínea ainda.</div>'}
+    ${req.alineas.length === 1
+      ? `<div class="aviso visivel info">Era a única alínea. O requisito volta a
+         ser preenchido direto, com os campos próprios dele.</div>` : ''}
+    <div class="modal-acoes">
+      <button class="botao botao-vazado" data-fechar>Cancelar</button>
+      <button class="botao botao-principal" id="confirmar"
+              style="background:var(--vermelho)">Excluir</button>
+    </div>`);
+
+  $('#confirmar').addEventListener('click', async e => {
+    ocupado(e.target, true, 'Excluir');
+    const { error } = await sb.from('alineas').update({ ativo: false }).eq('id', id);
+    if (error) { ocupado(e.target, false, 'Excluir'); toast(traduzErro(error), 'erro'); return; }
+    toast('Alínea excluída.', 'ok');
+    fecharModal();
+    carregarSecoes();
+  });
+}
+
+async function moverAlinea(id, passo) {
+  const req = estado.secoes.flatMap(s => s.requisitos)
+    .find(r => r.alineas.some(a => a.id === id));
+  const i = req.alineas.findIndex(a => a.id === id);
+  const j = i + passo;
+  if (j < 0 || j >= req.alineas.length) return;
+
+  const a = req.alineas[i], b = req.alineas[j];
+
+  await Promise.all([
+    sb.from('alineas').update({ ordem: b.ordem }).eq('id', a.id),
+    sb.from('alineas').update({ ordem: a.ordem }).eq('id', b.id)
+  ]);
+
+  await carregarSecoes();
 }
 
 async function excluirRequisito(id) {
@@ -472,7 +686,7 @@ async function moverRequisito(id, passo) {
 /* --------------------------------- aviso ao sair com coisa não salva */
 
 addEventListener('beforeunload', e => {
-  if ($('.requisito.sujo')) { e.preventDefault(); e.returnValue = ''; }
+  if ($('.requisito.sujo') || $('.alinea.sujo')) { e.preventDefault(); e.returnValue = ''; }
 });
 
 /* ---------------------------------------------------------------- início */
