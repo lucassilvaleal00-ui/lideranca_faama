@@ -1182,3 +1182,80 @@ table.dados td.nome-celula {
 }
 .req-rodape .estado { font-size: .78rem; color: var(--texto-suave); margin-right: auto; }
 .req-rodape .botao { width: auto; padding: 9px 16px; font-size: .86rem; }
+
+/* =====================================================================
+   ALÍNEAS — o terceiro nível (requisito → a, b, c)
+   ===================================================================== */
+
+.requisito.com-alineas > .requisito-grade { display: none; }
+
+.enunciado {
+  font-size: .78rem; color: var(--texto-suave);
+  background: var(--papel); border-radius: 7px;
+  padding: 8px 11px; margin-bottom: 10px; line-height: 1.5;
+}
+
+.lista-alineas {
+  margin: 10px 0 10px 0;
+  padding-left: 14px;
+  border-left: 3px solid var(--dourado);
+}
+
+.alinea {
+  border: 1px solid var(--borda); border-radius: var(--raio-p);
+  padding: 12px; margin-bottom: 9px; background: var(--branco);
+}
+.alinea.sujo { border-color: var(--dourado); background: #fffdf5; }
+
+.alinea-topo {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+}
+.alinea-topo .letra {
+  width: 26px; height: 26px; flex: none;
+  display: grid; place-items: center; border-radius: 50%;
+  background: var(--dourado); color: var(--marinho-900);
+  font-size: .78rem; font-weight: 800;
+}
+.alinea-topo input[type=text] {
+  flex: 1; font-size: .9rem; font-weight: 600; padding: 8px 10px;
+}
+
+.alinea-rodape {
+  display: flex; align-items: center; gap: 8px;
+  padding-top: 9px; border-top: 1px solid var(--borda);
+}
+.alinea-rodape .estado { font-size: .74rem; color: var(--texto-suave); margin-right: auto; }
+.alinea-rodape .botao { width: auto; padding: 6px 13px; font-size: .8rem; }
+
+.botao-alinea {
+  width: 100%; padding: 9px;
+  background: #fffbf0; border: 1.5px dashed var(--dourado);
+  border-radius: var(--raio-p); cursor: pointer;
+  font-family: inherit; font-size: .84rem; font-weight: 650;
+  color: var(--dourado-esc);
+}
+.botao-alinea:hover { background: #fff5dc; }
+
+/* --------------------------------------------- alínea na tela da pasta */
+
+.req-grupo {
+  background: var(--branco); border: 1px solid var(--borda);
+  border-radius: var(--raio); box-shadow: var(--sombra);
+  margin-bottom: 12px; overflow: hidden;
+}
+.req-grupo > .titulo-grupo {
+  padding: 13px 16px; background: var(--papel);
+  border-bottom: 1px solid var(--borda);
+  font-size: .92rem; font-weight: 650; color: var(--marinho-800);
+  line-height: 1.45;
+}
+.req-grupo > .corpo-grupo { padding: 10px 12px; }
+.req-grupo .req-cartao { box-shadow: none; margin-bottom: 9px; }
+.req-grupo .req-cartao:last-child { margin-bottom: 0; }
+
+.marca-alinea {
+  width: 24px; height: 24px; flex: none;
+  display: grid; place-items: center; border-radius: 50%;
+  background: var(--dourado); color: var(--marinho-900);
+  font-size: .74rem; font-weight: 800; margin-right: 2px;
+}
