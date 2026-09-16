@@ -1028,3 +1028,157 @@ table.dados td.nome-celula {
   background: #fff3d6; border: 1px solid #f2ddad;
   border-radius: 8px; padding: 8px 10px; margin-bottom: 10px;
 }
+
+/* =====================================================================
+   PASTA — o candidato cumpre os requisitos, o revisor avalia
+   ===================================================================== */
+
+.faixa-pasta {
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px 18px; margin-bottom: 18px;
+  background: linear-gradient(100deg, var(--marinho-800), var(--marinho-600));
+  color: #fff; border-radius: var(--raio); box-shadow: var(--sombra);
+  flex-wrap: wrap;
+}
+.faixa-pasta img.logo { width: 44px; height: 44px; border-radius: 11px; flex: none; }
+.faixa-pasta h1 { margin: 0; font-size: 1.05rem; font-weight: 700; }
+.faixa-pasta small { opacity: .8; font-size: .8rem; }
+.faixa-pasta .progresso-geral { margin-left: auto; text-align: right; min-width: 130px; }
+.faixa-pasta .progresso-geral strong { font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+.faixa-pasta .trilho { background: rgba(255,255,255,.22); margin: 6px 0 0; }
+.faixa-pasta .trilho i { background: var(--dourado); }
+
+@media (max-width: 540px) {
+  .faixa-pasta .progresso-geral { margin-left: 0; flex-basis: 100%; text-align: left; }
+}
+
+.aviso-revisor {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 14px; margin-bottom: 18px;
+  background: #fff3d6; border: 1px solid #f2ddad;
+  border-radius: var(--raio-p); font-size: .86rem; color: #8a6200;
+}
+
+/* ------------------------------------------------------ seção da pasta */
+
+.secao-pasta { margin-bottom: 22px; }
+
+.secao-cabeca {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 12px; flex-wrap: wrap;
+}
+.secao-cabeca h2 {
+  margin: 0; font-size: .95rem; font-weight: 700;
+  color: var(--marinho-800); text-transform: uppercase; letter-spacing: .04em;
+}
+.secao-cabeca .medidor { flex: 1; min-width: 140px; display: flex; align-items: center; gap: 9px; }
+.secao-cabeca .medidor .trilho { flex: 1; margin: 0; }
+.secao-cabeca .medidor span {
+  font-size: .78rem; font-weight: 700; color: var(--marinho-700);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------- cartão do requisito */
+
+.req-cartao {
+  background: var(--branco); border: 1px solid var(--borda);
+  border-left: 4px solid var(--borda);
+  border-radius: var(--raio); box-shadow: var(--sombra);
+  margin-bottom: 12px; overflow: hidden;
+}
+.req-cartao.pendente  { border-left-color: #c3ccdb; }
+.req-cartao.concluido { border-left-color: var(--dourado); }
+.req-cartao.aprovado  { border-left-color: var(--verde); }
+.req-cartao.corrigido { border-left-color: var(--vermelho); }
+
+.req-cabeca {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 14px 16px; cursor: pointer;
+}
+.req-cabeca:hover { background: #fafbfe; }
+.req-cabeca h3 { margin: 0 0 4px; font-size: .95rem; font-weight: 650; }
+.req-cabeca .meta { font-size: .78rem; color: var(--texto-suave); }
+.req-cabeca .lado { margin-left: auto; display: flex; align-items: center; gap: 8px; flex: none; }
+.req-cabeca .seta { color: var(--texto-suave); transition: transform .2s; }
+.req-cartao.aberto .req-cabeca .seta { transform: rotate(180deg); }
+
+.selo-status {
+  display: inline-block; padding: 4px 10px; border-radius: 99px;
+  font-size: .72rem; font-weight: 700; white-space: nowrap;
+}
+.selo-status.pendente  { background: #eef1f6; color: var(--texto-suave); }
+.selo-status.concluido { background: #fff3d6; color: #8a6200; }
+.selo-status.aprovado  { background: #e7f6ee; color: #0e5c37; }
+
+.req-corpo { display: none; padding: 0 16px 16px; }
+.req-cartao.aberto .req-corpo { display: block; }
+
+.caixa-correcao {
+  background: #fdecea; border: 1px solid #f5c6c2;
+  border-radius: var(--raio-p); padding: 12px 14px; margin-bottom: 14px;
+}
+.caixa-correcao strong { display: block; font-size: .82rem; color: #8c1c13; margin-bottom: 5px; }
+.caixa-correcao p { margin: 0; font-size: .87rem; color: #8c1c13; line-height: 1.5; }
+
+/* ------------------------------------------------------------- parte */
+
+.parte {
+  border: 1px solid var(--borda); border-radius: var(--raio-p);
+  padding: 13px; margin-bottom: 11px;
+}
+.parte-cabeca {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 11px;
+}
+.parte-cabeca .rotulo {
+  font-size: .76rem; font-weight: 700; color: var(--marinho-700);
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.parte-cabeca .completa {
+  margin-left: auto; font-size: .74rem; font-weight: 600;
+}
+.parte-cabeca .completa.sim  { color: var(--verde); }
+.parte-cabeca .completa.nao  { color: var(--texto-suave); }
+
+.parte-grade { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 680px) { .parte-grade.com-foto { grid-template-columns: 1fr 1fr; } }
+
+.parte-grade label {
+  display: block; font-size: .75rem; font-weight: 600;
+  color: var(--texto-suave); margin-bottom: 5px;
+}
+.parte-grade textarea { min-height: 130px; font-size: .9rem; }
+.parte-grade input[type=date] { font-size: .9rem; }
+
+.caixa-foto {
+  border: 1.5px dashed var(--borda); border-radius: var(--raio-p);
+  min-height: 130px; display: grid; place-items: center;
+  cursor: pointer; overflow: hidden; position: relative;
+  background: var(--papel); text-align: center; padding: 14px;
+}
+.caixa-foto:hover { border-color: var(--azul-claro); background: #f3f7fe; }
+.caixa-foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.caixa-foto .instrucao { font-size: .82rem; color: var(--texto-suave); line-height: 1.5; }
+.caixa-foto .instrucao .icone { display: block; font-size: 1.7rem; margin-bottom: 6px; }
+.caixa-foto.somente-leitura { cursor: default; border-style: solid; }
+
+.trocar-foto {
+  position: absolute; right: 7px; bottom: 7px;
+  background: rgba(1,21,56,.82); color: #fff;
+  border: 0; border-radius: 7px; padding: 6px 11px;
+  font-family: inherit; font-size: .76rem; font-weight: 600; cursor: pointer;
+}
+.trocar-foto:hover { background: var(--marinho-800); }
+
+.orientacao {
+  font-size: .78rem; color: var(--texto-suave);
+  background: var(--papel); border-left: 3px solid var(--dourado);
+  padding: 7px 10px; border-radius: 0 7px 7px 0; margin-top: 6px;
+  line-height: 1.5;
+}
+
+.req-rodape {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding-top: 12px; border-top: 1px solid var(--borda);
+}
+.req-rodape .estado { font-size: .78rem; color: var(--texto-suave); margin-right: auto; }
+.req-rodape .botao { width: auto; padding: 9px 16px; font-size: .86rem; }
