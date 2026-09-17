@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#012056">
+<title>Gráficos Gerais — App de Liderança</title>
+<link rel="icon" href="assets/icone-192.png">
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+
+<main class="conteudo">
+  <button class="voltar-pagina" onclick="location.href='inicio.html'">← Voltar ao início</button>
+
+  <div class="cabecalho-pagina">
+    <h1>Gráficos Gerais</h1>
+  </div>
+
+  <div class="numerao" id="placares">
+    <div class="placar"><div class="esqueleto" style="height:44px"></div></div>
+    <div class="placar"><div class="esqueleto" style="height:44px"></div></div>
+    <div class="placar"><div class="esqueleto" style="height:44px"></div></div>
+    <div class="placar"><div class="esqueleto" style="height:44px"></div></div>
+  </div>
+
+  <div class="grade-graficos">
+
+    <section class="painel-grafico">
+      <h2>Candidatos por pasta</h2>
+      <p class="legenda-topo">Quantas pessoas estão inscritas em cada classe de liderança.</p>
+      <div id="grafico-pastas"><div class="esqueleto" style="height:170px"></div></div>
+    </section>
+
+    <section class="painel-grafico">
+      <h2>Situação das pastas</h2>
+      <p class="legenda-topo">Em que ponto do caminho está cada cartão aberto.</p>
+      <div id="grafico-situacao"><div class="esqueleto" style="height:170px"></div></div>
+    </section>
+
+    <section class="painel-grafico" style="grid-column:1/-1">
+      <h2>Candidatos por turma</h2>
+      <p class="legenda-topo">Distribuição dos candidatos cadastrados entre as turmas.</p>
+      <div id="grafico-turmas"><div class="esqueleto" style="height:140px"></div></div>
+    </section>
+
+  </div>
+</main>
+
+<script type="module" src="js/graficos.js"></script>
+</body>
+</html>

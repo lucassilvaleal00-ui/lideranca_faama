@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#012056">
+<title>Gerenciador de Pastas — App de Liderança</title>
+<link rel="icon" href="assets/icone-192.png">
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+
+<main class="conteudo">
+  <button class="voltar-pagina" onclick="location.href='inicio.html'">← Voltar ao início</button>
+
+  <div class="cabecalho-pagina">
+    <h1>Gerenciador de Pastas</h1>
+  </div>
+
+  <div class="layout-gerenciador">
+
+    <nav class="nav-lateral" id="nav">
+      <button class="nav-item ativo" data-vista="avaliar">
+        📥 Pedidos de avaliação <span class="conta" id="c-avaliar"></span>
+      </button>
+      <button class="nav-item" data-vista="solicitacoes">
+        ✋ Solicitações de pasta <span class="conta" id="c-solicitacoes"></span>
+      </button>
+      <button class="nav-item" data-vista="candidatos">
+        👥 Meus candidatos <span class="conta" id="c-candidatos"></span>
+      </button>
+      <button class="nav-item" data-vista="aprovados">
+        ✓ Cartões aprovados <span class="conta" id="c-aprovados"></span>
+      </button>
+    </nav>
+
+    <section id="area">
+      <div class="esqueleto" style="height:120px;margin-bottom:12px"></div>
+      <div class="esqueleto" style="height:120px"></div>
+    </section>
+
+  </div>
+</main>
+
+<div class="fundo-modal" id="fundo-modal">
+  <div class="modal" id="caixa-modal"></div>
+</div>
+
+<script type="module" src="js/pastas.js"></script>
+</body>
+</html>
