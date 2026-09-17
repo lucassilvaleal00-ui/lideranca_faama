@@ -28,7 +28,7 @@ function abrirModal(html) {
   caixa.className = 'modal';
   caixa.innerHTML = html;
   $('#fundo-modal').classList.add('aberto');
-  caixa.querySelector('[data-fechar]')?.addEventListener('click', fecharModal);
+  caixa.querySelectorAll('[data-fechar]').forEach(b => b.addEventListener('click', fecharModal));
   return caixa;
 }
 function fecharModal() { $('#fundo-modal').classList.remove('aberto'); }

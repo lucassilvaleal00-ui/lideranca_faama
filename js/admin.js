@@ -14,6 +14,7 @@ const POR_PAGINA = 15;
 
 const estado = {
   usuarios: [], turmas: [], formularios: [], pastasPorPessoa: new Map(),
+  candidatosPorRevisor: new Map(),
   pedidos: [], pagina: 1, busca: '', filtroTipo: '',
   selecionados: new Set(), fotoNova: null, eu: null
 };
@@ -89,7 +90,7 @@ function abrirModal(html, { largo = false } = {}) {
   caixa.className = `modal ${largo ? 'largo' : ''}`;
   caixa.innerHTML = html;
   $('#fundo-modal').classList.add('aberto');
-  caixa.querySelector('[data-fechar]')?.addEventListener('click', fecharModal);
+  caixa.querySelectorAll('[data-fechar]').forEach(b => b.addEventListener('click', fecharModal));
   return caixa;
 }
 
@@ -104,13 +105,14 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') fecharModal(
 /* ================================================================ CARGA */
 
 async function carregarTudo() {
-  const [us, tu, fo, pa, pe] = await Promise.all([
+  const [us, tu, fo, pa, pe, rc] = await Promise.all([
     sb.from('perfis').select('*, turma:turmas(id, nome)').order('nome'),
     sb.from('turmas').select('*').order('nome'),
     sb.from('formularios').select('*').order('ordem'),
     sb.from('pastas').select('candidato_id, status, formulario:formularios(nome)'),
     sb.from('pedidos_acesso').select('*, turma:turmas(nome)')
-      .eq('status', 'pendente').order('criado_em')
+      .eq('status', 'pendente').order('criado_em'),
+    sb.from('revisor_candidato').select('revisor_id, candidato_id')
   ]);
 
   if (us.error) { toast(traduzErro(us.error), 'erro'); return; }
@@ -124,6 +126,14 @@ async function carregarTudo() {
   for (const p of pa.data ?? []) {
     if (!estado.pastasPorPessoa.has(p.candidato_id)) estado.pastasPorPessoa.set(p.candidato_id, []);
     estado.pastasPorPessoa.get(p.candidato_id).push(p);
+  }
+
+  estado.candidatosPorRevisor = new Map();
+  for (const v of rc.data ?? []) {
+    if (!estado.candidatosPorRevisor.has(v.revisor_id)) {
+      estado.candidatosPorRevisor.set(v.revisor_id, new Set());
+    }
+    estado.candidatosPorRevisor.get(v.revisor_id).add(v.candidato_id);
   }
 
   preencherTurmasSelect();
@@ -508,6 +518,17 @@ function modalEditar(usuario) {
           ? '<div class="dica-campo">Você não pode rebaixar o seu próprio perfil.</div>' : ''}
       </div>
     </div>
+    <div id="bloco-cand-editar" ${usuario.tipo === 'revisor' ? '' : 'hidden'}
+         style="margin-bottom:14px">
+      <label style="display:block;font-size:.8rem;font-weight:600;
+                    color:var(--texto-suave);margin-bottom:6px">
+        Candidatos que este revisor acompanha
+      </label>
+      <input type="text" id="busca-cand-editar"
+             placeholder="Pesquisar por nome, RA ou turma…" style="margin-bottom:8px">
+      <div class="lista-selecao" id="lista-cand-editar"></div>
+    </div>
+
     <div class="dica-campo" style="margin-bottom:8px">
       O e-mail (${esc(usuario.email)}) não é editável — ele é a identidade de acesso.
     </div>
@@ -518,9 +539,47 @@ function modalEditar(usuario) {
 
   if (usuario.id === estado.eu.id) $('#e-tipo').disabled = true;
 
+  /* lista de candidatos deste revisor */
+  const jaAcompanha = new Set(estado.candidatosPorRevisor.get(usuario.id) ?? []);
+
+  function desenharCandidatos(filtro = '') {
+    const q = filtro.trim().toLowerCase();
+
+    const lista = estado.usuarios
+      .filter(u => u.tipo === 'candidato' && u.id !== usuario.id)
+      .filter(u => !q || [u.nome, u.ra, u.turma?.nome]
+        .some(v => String(v ?? '').toLowerCase().includes(q)));
+
+    $('#lista-cand-editar').innerHTML = lista.length
+      ? lista.map(u => `
+        <label class="item-selecao">
+          <input type="checkbox" class="cand-editar" value="${u.id}"
+                 ${jaAcompanha.has(u.id) ? 'checked' : ''}>
+          <span>${esc(u.nome)}
+            <div class="sub">RA ${esc(u.ra)}${u.turma ? ' · ' + esc(u.turma.nome) : ''}</div>
+          </span>
+        </label>`).join('')
+      : '<div class="vazio" style="padding:18px">Nenhum candidato encontrado.</div>';
+  }
+
+  desenharCandidatos();
+
+  $('#busca-cand-editar').addEventListener('input', e => {
+    // guarda o que já estava marcado antes de redesenhar
+    $$('.cand-editar').forEach(i =>
+      i.checked ? jaAcompanha.add(i.value) : jaAcompanha.delete(i.value));
+    desenharCandidatos(e.target.value);
+  });
+
+  $('#e-tipo').addEventListener('change', e => {
+    $('#bloco-cand-editar').hidden = e.target.value !== 'revisor';
+  });
+
   $('#salvar-edicao').addEventListener('click', async e => {
     const cpf = soDigitos($('#e-cpf').value);
     if (cpf && !cpfValido(cpf)) { avisar('#aviso-editar', 'CPF inválido.'); return; }
+
+    const novoTipo = usuario.id === estado.eu.id ? usuario.tipo : $('#e-tipo').value;
 
     ocupado(e.target, true, 'Salvar');
 
@@ -530,13 +589,30 @@ function modalEditar(usuario) {
       turma_id: $('#e-turma').value || null,
       ra: soDigitos($('#e-ra').value),
       cpf: cpf || null,
-      ...(usuario.id === estado.eu.id ? {} : { tipo: $('#e-tipo').value })
+      ...(usuario.id === estado.eu.id ? {} : { tipo: novoTipo })
     }).eq('id', usuario.id);
 
     if (error) {
       ocupado(e.target, false, 'Salvar');
       avisar('#aviso-editar', traduzErro(error));
       return;
+    }
+
+    /* vínculos com candidatos */
+    if (novoTipo === 'revisor') {
+      $$('.cand-editar').forEach(i =>
+        i.checked ? jaAcompanha.add(i.value) : jaAcompanha.delete(i.value));
+
+      await sb.from('revisor_candidato').delete().eq('revisor_id', usuario.id);
+
+      if (jaAcompanha.size) {
+        await sb.from('revisor_candidato').insert(
+          [...jaAcompanha].map(c => ({ revisor_id: usuario.id, candidato_id: c }))
+        );
+      }
+    } else if (usuario.tipo === 'revisor') {
+      // deixou de ser revisor: os vínculos não fazem mais sentido
+      await sb.from('revisor_candidato').delete().eq('revisor_id', usuario.id);
     }
 
     toast('Cadastro atualizado.', 'ok');
