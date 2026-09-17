@@ -1259,3 +1259,143 @@ table.dados td.nome-celula {
   background: var(--dourado); color: var(--marinho-900);
   font-size: .74rem; font-weight: 800; margin-right: 2px;
 }
+
+/* =====================================================================
+   GERENCIADOR DE PASTAS
+   ===================================================================== */
+
+.layout-gerenciador {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+  align-items: start;
+}
+@media (min-width: 820px) {
+  .layout-gerenciador { grid-template-columns: 232px 1fr; }
+}
+
+.nav-lateral {
+  display: flex; gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+@media (min-width: 820px) {
+  .nav-lateral {
+    flex-direction: column;
+    position: sticky; top: 76px;
+    overflow: visible; padding-bottom: 0;
+  }
+}
+
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 14px; white-space: nowrap;
+  background: var(--branco); border: 1px solid var(--borda);
+  border-radius: var(--raio-p); cursor: pointer;
+  font-family: inherit; font-size: .88rem; font-weight: 600;
+  color: var(--texto-suave); text-align: left;
+  transition: all .12s;
+}
+.nav-item:hover { border-color: var(--azul-claro); color: var(--marinho-700); }
+.nav-item.ativo {
+  background: var(--marinho-700); border-color: var(--marinho-700); color: #fff;
+}
+.nav-item .conta {
+  margin-left: auto;
+  min-width: 22px; padding: 1px 7px; border-radius: 99px;
+  background: var(--papel); color: var(--texto-suave);
+  font-size: .74rem; font-weight: 700;
+}
+.nav-item.ativo .conta { background: rgba(255,255,255,.22); color: #fff; }
+.nav-item .conta:empty { display: none; }
+
+/* ------------------------------------------------------- cartão de pasta */
+
+.grade-pastas {
+  display: grid; grid-template-columns: 1fr; gap: 12px;
+}
+@media (min-width: 1000px) { .grade-pastas { grid-template-columns: 1fr 1fr; } }
+
+.cartao-pasta {
+  background: var(--branco); border: 1px solid var(--borda);
+  border-left: 4px solid var(--dourado);
+  border-radius: var(--raio); box-shadow: var(--sombra);
+  padding: 14px 16px;
+}
+.cartao-pasta.aprovada  { border-left-color: var(--verde); }
+.cartao-pasta.solicitada { border-left-color: var(--azul-claro); }
+
+.cartao-pasta .nome-pasta {
+  font-size: .76rem; font-weight: 700; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--marinho-700);
+  margin-bottom: 10px;
+}
+
+.pessoa-linha {
+  display: flex; align-items: center; gap: 11px; margin-bottom: 12px;
+}
+.pessoa-linha .mini-avatar { width: 42px; height: 42px; font-size: .84rem; }
+.pessoa-linha strong { display: block; font-size: .93rem; }
+.pessoa-linha small  { font-size: .78rem; color: var(--texto-suave); }
+
+.cartao-pasta .rodape {
+  display: flex; align-items: center; gap: 10px;
+  padding-top: 11px; border-top: 1px solid var(--borda);
+  flex-wrap: wrap;
+}
+.cartao-pasta .rodape .botao { width: auto; padding: 8px 14px; font-size: .84rem; }
+.cartao-pasta .rodape .info {
+  font-size: .8rem; color: var(--texto-suave); margin-right: auto;
+}
+.cartao-pasta .rodape .destaque {
+  font-weight: 700; color: var(--dourado-esc);
+}
+
+/* ----------------------------------------------------------- gráficos */
+
+.grade-graficos {
+  display: grid; grid-template-columns: 1fr; gap: 16px;
+}
+@media (min-width: 900px) { .grade-graficos { grid-template-columns: 1fr 1fr; } }
+
+.painel-grafico {
+  background: var(--branco); border: 1px solid var(--borda);
+  border-radius: var(--raio); box-shadow: var(--sombra);
+  padding: 18px;
+}
+.painel-grafico h2 {
+  margin: 0 0 2px; font-size: .95rem; font-weight: 700; color: var(--marinho-800);
+}
+.painel-grafico .legenda-topo {
+  margin: 0 0 16px; font-size: .8rem; color: var(--texto-suave);
+}
+
+.numerao {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+  margin-bottom: 20px;
+}
+@media (min-width: 720px) { .numerao { grid-template-columns: repeat(4, 1fr); } }
+
+.placar {
+  background: var(--branco); border: 1px solid var(--borda);
+  border-radius: var(--raio); box-shadow: var(--sombra);
+  padding: 16px;
+}
+.placar .valor {
+  font-size: 1.9rem; font-weight: 800; color: var(--marinho-800);
+  font-variant-numeric: tabular-nums; line-height: 1.1;
+}
+.placar .rotulo {
+  font-size: .78rem; color: var(--texto-suave); margin-top: 3px;
+}
+
+.barra-item { margin-bottom: 14px; }
+.barra-item:last-child { margin-bottom: 0; }
+.barra-topo {
+  display: flex; align-items: baseline; gap: 10px; margin-bottom: 5px;
+}
+.barra-topo .nome { font-size: .85rem; font-weight: 600; }
+.barra-topo .valor {
+  margin-left: auto; font-size: .85rem; font-weight: 700;
+  color: var(--marinho-700); font-variant-numeric: tabular-nums;
+}
