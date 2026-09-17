@@ -1399,3 +1399,68 @@ table.dados td.nome-celula {
   margin-left: auto; font-size: .85rem; font-weight: 700;
   color: var(--marinho-700); font-variant-numeric: tabular-nums;
 }
+
+/* =====================================================================
+   NOTIFICAÇÕES COM SELEÇÃO
+   ===================================================================== */
+
+.barra-notif {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; margin-bottom: 6px;
+  border-bottom: 1px solid var(--borda);
+  font-size: .8rem; flex-wrap: wrap;
+}
+.barra-notif .checkbox { font-size: .8rem; margin-right: auto; }
+.barra-notif .acao {
+  background: none; border: 0; padding: 5px 8px; border-radius: 7px;
+  font-family: inherit; font-size: .79rem; font-weight: 650;
+  color: var(--azul-claro); cursor: pointer;
+}
+.barra-notif .acao:hover:not(:disabled) { background: var(--papel); }
+.barra-notif .acao.perigo { color: var(--vermelho); }
+.barra-notif .acao:disabled { opacity: .4; cursor: not-allowed; }
+
+.notificacao { display: flex; align-items: flex-start; gap: 10px; }
+.notificacao > input[type=checkbox] {
+  width: 16px; height: 16px; flex: none; margin-top: 3px;
+  accent-color: var(--marinho-700); cursor: pointer;
+}
+.notificacao .texto { flex: 1; min-width: 0; cursor: pointer; }
+
+/* -------------------------------------------------- legenda da foto */
+
+.campo-legenda { margin-top: 8px; }
+.campo-legenda input {
+  padding: 8px 11px; font-size: .85rem;
+}
+.campo-legenda label {
+  display: block; font-size: .74rem; font-weight: 600;
+  color: var(--texto-suave); margin-bottom: 4px;
+}
+
+.legenda-vista {
+  margin-top: 7px; font-size: .8rem; color: var(--texto-suave);
+  text-align: center; font-style: italic; line-height: 1.45;
+}
+
+/* ------------------------------------------------- papel timbrado */
+
+.timbrado-linha {
+  display: flex; align-items: center; gap: 13px;
+  padding: 14px 0; border-bottom: 1px solid var(--borda);
+  flex-wrap: wrap;
+}
+.timbrado-linha:last-child { border-bottom: 0; }
+
+.timbrado-linha .selo-pdf {
+  width: 42px; height: 42px; flex: none;
+  display: grid; place-items: center; border-radius: 10px;
+  background: var(--papel); font-size: 1.2rem;
+}
+.timbrado-linha .selo-pdf.tem { background: #e7f6ee; }
+
+.timbrado-linha .corpo { flex: 1; min-width: 160px; }
+.timbrado-linha .corpo strong { display: block; font-size: .92rem; }
+.timbrado-linha .corpo small  { font-size: .78rem; color: var(--texto-suave); }
+
+.timbrado-linha .botao { width: auto; padding: 8px 14px; font-size: .84rem; }
