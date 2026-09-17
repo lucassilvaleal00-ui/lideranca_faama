@@ -212,7 +212,7 @@ function desenhar() {
         <h2>${esc(s.titulo)}</h2>
         <div class="medidor">
           <div class="trilho"><i style="width:${p.pct}%"></i></div>
-          <span>${p.pct}%</span>
+          <span>${p.aprovados}/${p.total} · ${p.pct}%</span>
         </div>
       </div>
       ${s.requisitos.map((r, i) => blocoRequisito(r, i)).join('')}
@@ -332,6 +332,17 @@ function blocoParte(u, parte, i, status) {
             ${travado ? '' :
               '<input type="file" accept="image/jpeg,image/png" hidden data-arquivo>'}
           </div>
+
+          ${travado
+            ? (parte.legenda
+                ? `<div class="legenda-vista">${esc(parte.legenda)}</div>` : '')
+            : `<div class="campo-legenda">
+                 <label>Legenda da foto</label>
+                 <input type="text" data-campo="legenda" maxlength="180"
+                        placeholder="Ex.: entrega dos certificados, 12/05/2026"
+                        value="${esc(parte.legenda ?? '')}">
+               </div>`}
+
           ${u.dica_foto ? `<div class="orientacao">${esc(u.dica_foto)}</div>` : ''}
         </div>` : ''}
     </div>
@@ -342,6 +353,12 @@ function rodapeUnidade(u, resposta, status, prontas) {
   const chave = chaveUnidade(u.requisitoId, u.alineaId);
   const completo = prontas >= u.qtd_partes;
 
+  /* só faz sentido gerar o relatório quando há algo escrito */
+  const botaoPdf = prontas > 0
+    ? `<button class="botao botao-vazado" data-pdf="${chave}"
+               title="Gerar PDF no papel timbrado">📄 Gerar PDF</button>`
+    : '';
+
   if (estado.podeAvaliar) {
     return `
     <div class="req-rodape">
@@ -351,6 +368,7 @@ function rodapeUnidade(u, resposta, status, prontas) {
           : status === 'concluido' ? 'Enviado para avaliação'
           : 'O candidato ainda não enviou'}
       </span>
+      ${botaoPdf}
       ${status === 'aprovado'
         ? `<button class="botao botao-vazado" data-reabrir="${chave}">Reabrir</button>`
         : `<button class="botao botao-vazado" data-corrigir="${chave}">Devolver com correção</button>
@@ -362,6 +380,7 @@ function rodapeUnidade(u, resposta, status, prontas) {
   if (status === 'aprovado') {
     return `<div class="req-rodape">
       <span class="estado">✓ Aprovado pelo revisor — não pode mais ser alterado.</span>
+      ${botaoPdf}
     </div>`;
   }
 
@@ -370,6 +389,7 @@ function rodapeUnidade(u, resposta, status, prontas) {
     <span class="estado" data-estado>
       ${completo ? 'Tudo preenchido' : `Faltam ${u.qtd_partes - prontas} parte(s)`}
     </span>
+    ${botaoPdf}
     <button class="botao botao-vazado" data-salvar="${chave}">Salvar</button>
     <button class="botao botao-dourado" data-concluir="${chave}"
             ${completo ? '' : 'disabled'}
@@ -408,7 +428,51 @@ $('#conteudo-pasta').addEventListener('click', async e => {
   if (d.aprovar)  return avaliar(d.aprovar, 'aprovado');
   if (d.reabrir)  return avaliar(d.reabrir, 'pendente');
   if (d.corrigir) return modalCorrecao(d.corrigir);
+  if (d.pdf)      return gerarRelatorio(d.pdf, b);
 });
+
+/* ========================================================== RELATÓRIO */
+
+async function gerarRelatorio(chave, botao) {
+  const u = unidadePorChave(chave);
+  const resposta = estado.respostas.get(chave);
+
+  if (!u || !resposta) { toast('Salve o requisito antes de gerar o PDF.', 'erro'); return; }
+
+  const secao = estado.secoes.find(s =>
+    s.requisitos.some(r => r.id === u.requisitoId));
+  const requisito = secao?.requisitos.find(r => r.id === u.requisitoId);
+  const indice = secao.requisitos.indexOf(requisito) + 1;
+
+  const texto = botao.innerHTML;
+  ocupado(botao, true, texto);
+
+  try {
+    const { gerarPdfRequisito, baixarPdf, nomeArquivo } = await import('./relatorio.js');
+
+    const bytes = await gerarPdfRequisito({
+      secao: secao.titulo,
+      requisito: `${indice}. ${requisito.titulo}`,
+      alinea: u.rotulo ? `${u.rotulo}) ${u.titulo}` : null,
+      timbrado: estado.pasta.formulario.timbrado_path,
+      unidade: u,
+      partes: resposta.partes
+    });
+
+    baixarPdf(bytes, nomeArquivo(
+      estado.pasta.candidato.nome,
+      estado.pasta.formulario.nome,
+      u.rotulo ? `${indice}${u.rotulo}` : String(indice)
+    ));
+
+    ocupado(botao, false, texto);
+    toast('PDF gerado.', 'ok');
+
+  } catch (erro) {
+    ocupado(botao, false, texto);
+    toast('Não foi possível gerar o PDF. ' + (erro?.message ?? ''), 'erro');
+  }
+}
 
 /* foto escolhida */
 $('#conteudo-pasta').addEventListener('change', async e => {
@@ -491,8 +555,9 @@ async function salvarUnidade(chave, botao, concluir) {
 
       const data = bloco.querySelector('[data-campo="data"]')?.value || null;
       const descricao = bloco.querySelector('[data-campo="descricao"]')?.value.trim() || null;
+      const legenda = bloco.querySelector('[data-campo="legenda"]')?.value.trim() || null;
 
-      const mudanca = { data_cumprimento: data, descricao };
+      const mudanca = { data_cumprimento: data, descricao, legenda };
 
       const chaveFoto = `${chave}|${ordem}`;
       const blob = estado.pendentesFoto.get(chaveFoto);

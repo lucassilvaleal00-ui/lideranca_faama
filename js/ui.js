@@ -171,16 +171,29 @@ async function montarPainelNotificacoes() {
   const painel = document.createElement('div');
   painel.className = 'menu-flutuante';
   painel.id = 'painel-notif';
+  painel.style.minWidth = '310px';
   painel.innerHTML = `
     <div class="cabeca" style="display:flex;align-items:center;gap:10px">
       <strong style="margin-right:auto">Notificações</strong>
-      <button class="link" id="btn-marcar-todas">Marcar todas</button>
     </div>
+
+    <div class="barra-notif" id="barra-notif" hidden>
+      <label class="checkbox">
+        <input type="checkbox" id="marcar-todas-notif">
+        Selecionar todas
+      </label>
+      <button class="acao" id="acao-lida" disabled>Marcar como lida</button>
+      <button class="acao perigo" id="acao-apagar" disabled>Apagar</button>
+    </div>
+
     <div class="lista-notificacoes" id="lista-notif">
       <div class="vazio">Carregando…</div>
     </div>
   `;
   document.body.appendChild(painel);
+
+  /* clicar dentro do painel não deve fechá-lo */
+  painel.addEventListener('click', e => e.stopPropagation());
 
   $('#btn-notif').addEventListener('click', e => {
     e.stopPropagation();
@@ -189,14 +202,46 @@ async function montarPainelNotificacoes() {
     if (painel.classList.contains('aberto')) carregarNotificacoes();
   });
 
-  $('#btn-marcar-todas').addEventListener('click', async () => {
-    await sb.from('notificacoes').update({ lida: true }).eq('lida', false);
-    carregarNotificacoes();
+  $('#marcar-todas-notif').addEventListener('change', e => {
+    $$('.marca-notif').forEach(c => { c.checked = e.target.checked; });
+    atualizarAcoesNotif();
+  });
+
+  $('#acao-lida').addEventListener('click', async () => {
+    const ids = selecionadasNotif();
+    if (!ids.length) return;
+    await sb.from('notificacoes').update({ lida: true }).in('id', ids);
+    await carregarNotificacoes();
+    atualizarSelo();
+  });
+
+  $('#acao-apagar').addEventListener('click', async () => {
+    const ids = selecionadasNotif();
+    if (!ids.length) return;
+    await sb.from('notificacoes').delete().in('id', ids);
+    await carregarNotificacoes();
     atualizarSelo();
   });
 
   atualizarSelo();
   setInterval(atualizarSelo, 60000);
+}
+
+const selecionadasNotif = () => $$('.marca-notif:checked').map(c => c.dataset.id);
+
+function atualizarAcoesNotif() {
+  const n = selecionadasNotif().length;
+  $('#acao-lida').disabled = !n;
+  $('#acao-apagar').disabled = !n;
+  $('#acao-lida').textContent   = n ? `Marcar ${n} como lida` : 'Marcar como lida';
+  $('#acao-apagar').textContent = n ? `Apagar ${n}` : 'Apagar';
+
+  const total = $$('.marca-notif').length;
+  const todas = $('#marcar-todas-notif');
+  if (todas) {
+    todas.checked = total > 0 && n === total;
+    todas.indeterminate = n > 0 && n < total;
+  }
 }
 
 async function atualizarSelo() {
@@ -218,32 +263,47 @@ async function carregarNotificacoes() {
     .from('notificacoes')
     .select('*')
     .order('criado_em', { ascending: false })
-    .limit(30);
+    .limit(50);
 
-  if (error) { lista.innerHTML = '<div class="vazio">Não foi possível carregar.</div>'; return; }
-
-  if (!data?.length) {
-    lista.innerHTML = '<div class="vazio"><span class="simbolo">🔕</span>Nenhuma notificação por aqui.</div>';
+  if (error) {
+    lista.innerHTML = '<div class="vazio">Não foi possível carregar.</div>';
+    $('#barra-notif').hidden = true;
     return;
   }
 
+  if (!data?.length) {
+    lista.innerHTML = '<div class="vazio"><span class="simbolo">🔕</span>Nenhuma notificação por aqui.</div>';
+    $('#barra-notif').hidden = true;
+    return;
+  }
+
+  $('#barra-notif').hidden = false;
+
   lista.innerHTML = data.map(n => `
-    <div class="notificacao ${n.lida ? '' : 'nao-lida'}" data-id="${n.id}"
-         ${n.link ? `data-link="${esc(n.link)}"` : ''}>
-      <strong>${esc(n.titulo)}</strong>
-      <span>${esc(n.mensagem || '')}</span>
-      <time>${quandoFoi(n.criado_em)}</time>
+    <div class="notificacao ${n.lida ? '' : 'nao-lida'}">
+      <input type="checkbox" class="marca-notif" data-id="${n.id}"
+             aria-label="Selecionar notificação">
+      <div class="texto" data-id="${n.id}" ${n.link ? `data-link="${esc(n.link)}"` : ''}>
+        <strong>${esc(n.titulo)}</strong>
+        <span>${esc(n.mensagem || '')}</span>
+        <time>${quandoFoi(n.criado_em)}</time>
+      </div>
     </div>
   `).join('');
 
-  $$('.notificacao', lista).forEach(el => {
+  $$('.marca-notif', lista).forEach(c =>
+    c.addEventListener('change', atualizarAcoesNotif));
+
+  $$('.texto', lista).forEach(el => {
     el.addEventListener('click', async () => {
       await sb.from('notificacoes').update({ lida: true }).eq('id', el.dataset.id);
       atualizarSelo();
       if (el.dataset.link) location.href = el.dataset.link;
-      else el.classList.remove('nao-lida');
+      else el.closest('.notificacao').classList.remove('nao-lida');
     });
   });
+
+  atualizarAcoesNotif();
 }
 
 /* fecha os menus ao clicar fora */

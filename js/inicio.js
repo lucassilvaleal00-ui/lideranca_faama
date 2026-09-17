@@ -61,7 +61,7 @@ function cardClasse(categoria, linhas) {
         <div class="classe-topo">
           <span class="classe-nome">${esc(l.formulario)}</span>
           ${temPasta && l.pasta_status !== 'solicitada'
-            ? `<span class="classe-conta">${p.feito}/${p.total}</span>` : ''}
+            ? `<span class="classe-conta">${p.feito}/${p.total} · ${p.pct}%</span>` : ''}
         </div>
         ${temPasta && l.pasta_status !== 'solicitada'
           ? `<div class="trilho"><i style="width:${p.pct}%"></i></div>` : ''}

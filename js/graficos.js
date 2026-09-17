@@ -27,23 +27,30 @@ function placar(valor, rotulo) {
  * Barras horizontais. Horizontal porque os nomes são longos
  * ("Líder Master Avançado") — na vertical o rótulo viraria texto virado.
  */
-function barras(itens, { unidade = '' } = {}) {
+function barras(itens) {
   if (!itens.length) {
     return '<div class="vazio" style="padding:26px">Nada para mostrar ainda.</div>';
   }
 
   const maior = Math.max(...itens.map(i => i.valor), 1);
+  const soma  = itens.reduce((s, i) => s + i.valor, 0);
 
+  /* O comprimento da barra é proporcional ao MAIOR valor — assim a maior
+     ocupa a linha inteira e as diferenças ficam visíveis. A porcentagem
+     escrita, essa sim, é sobre o TOTAL: é o que a pessoa quer saber. */
   return itens.map(i => {
     const largura = Math.round(100 * i.valor / maior);
+    const pct = soma ? Math.round(100 * i.valor / soma) : 0;
+    const rotulo = `${i.valor} · ${pct}%`;
+
     return `
     <div class="barra-item">
       <div class="barra-topo">
         <span class="nome">${esc(i.nome)}</span>
-        <span class="valor">${i.valor}${unidade}</span>
+        <span class="valor">${rotulo}</span>
       </div>
       <div class="trilho" style="height:10px"
-           role="img" aria-label="${esc(i.nome)}: ${i.valor}${unidade}">
+           role="img" aria-label="${esc(i.nome)}: ${rotulo} do total">
         <i style="width:${i.valor ? Math.max(largura, 2) : 0}%;
                   background:${i.cor ?? 'var(--marinho-700)'}"></i>
       </div>
