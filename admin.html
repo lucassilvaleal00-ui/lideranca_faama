@@ -32,6 +32,7 @@
   <nav class="abas">
     <button class="aba ativa" data-aba="cadastro">Área de cadastro</button>
     <button class="aba" data-aba="turmas">Cadastro de turma</button>
+    <button class="aba" data-aba="timbrado">Inserir papel timbrado</button>
   </nav>
 
   <!-- ============================================== ÁREA DE CADASTRO -->
@@ -196,6 +197,23 @@
           </tbody>
         </table>
       </div>
+    </div>
+  </section>
+
+  <!-- =============================================== PAPEL TIMBRADO -->
+  <section class="painel-aba" id="painel-timbrado">
+    <div class="bloco">
+      <h2>Papel timbrado de cada pasta</h2>
+
+      <p class="dica-campo" style="margin:-8px 0 16px">
+        O PDF enviado aqui vira o fundo dos relatórios daquela pasta. Envie
+        uma folha A4 com o cabeçalho e o rodapé já desenhados — o texto do
+        requisito é escrito por cima, respeitando margens de 4&nbsp;cm no topo
+        e 3&nbsp;cm na base. Só a primeira página do arquivo é usada.
+      </p>
+
+      <div id="aviso-timbrado" class="aviso"></div>
+      <div id="lista-timbrados"></div>
     </div>
   </section>
 
