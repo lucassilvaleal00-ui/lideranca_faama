@@ -217,7 +217,24 @@ function desenhar() {
       </div>
       ${s.requisitos.map((r, i) => blocoRequisito(r, i)).join('')}
     </section>`;
-  }).join('');
+  }).join('') + rodapePasta();
+}
+
+/** Bloco final: gerar a pasta inteira num arquivo só. */
+function rodapePasta() {
+  return `
+  <section class="bloco" style="text-align:center;margin-top:8px">
+    <h2 style="justify-content:center">Pasta completa</h2>
+    <p class="dica-campo" style="margin:-8px auto 16px;max-width:460px">
+      Gera um arquivo único com todos os requisitos deste cartão, um por
+      página — inclusive os que ainda não foram preenchidos. Serve para
+      imprimir e entregar.
+    </p>
+    <button class="botao botao-dourado" id="btn-pasta-completa"
+            style="width:auto;padding:12px 26px">
+      📁 Gerar pasta
+    </button>
+  </section>`;
 }
 
 function blocoRequisito(req, indice) {
@@ -410,6 +427,8 @@ function unidadePorChave(chave) {
 }
 
 $('#conteudo-pasta').addEventListener('click', async e => {
+  if (e.target.closest('#btn-pasta-completa')) { gerarPastaCompleta(); return; }
+
   const cabeca = e.target.closest('[data-abrir]');
   if (cabeca) { cabeca.closest('.req-cartao').classList.toggle('aberto'); return; }
 
@@ -428,50 +447,127 @@ $('#conteudo-pasta').addEventListener('click', async e => {
   if (d.aprovar)  return avaliar(d.aprovar, 'aprovado');
   if (d.reabrir)  return avaliar(d.reabrir, 'pendente');
   if (d.corrigir) return modalCorrecao(d.corrigir);
-  if (d.pdf)      return gerarRelatorio(d.pdf, b);
+  if (d.pdf)      return gerarUmRequisito(d.pdf);
 });
 
-/* ========================================================== RELATÓRIO */
+/* ========================================================== RELATÓRIOS */
 
-async function gerarRelatorio(chave, botao) {
+/** Onde a resposta de uma unidade está guardada. */
+const acharResposta = (requisitoId, alineaId) =>
+  estado.respostas.get(chaveUnidade(requisitoId, alineaId));
+
+/** Pergunta o formato e executa. */
+function escolherFormato(titulo, descricao, aoEscolher) {
+  abrirModal(`
+    <div class="modal-topo">
+      <h2>${esc(titulo)}</h2>
+      <button class="fechar" data-fechar>×</button>
+    </div>
+    <p style="font-size:.88rem;color:var(--texto-suave);line-height:1.55;margin:0 0 6px">
+      ${esc(descricao)}
+    </p>
+    <div id="aviso-formato" class="aviso"></div>
+    <div class="modal-acoes">
+      <button class="botao botao-vazado" data-formato="word">📝 Word</button>
+      <button class="botao botao-principal" data-formato="pdf">📄 PDF</button>
+    </div>`);
+
+  $$('[data-formato]', $('#caixa-modal')).forEach(b => {
+    b.addEventListener('click', async () => {
+      const texto = b.innerHTML;
+      $$('[data-formato]').forEach(x => { x.disabled = true; });
+      ocupado(b, true, texto);
+
+      try {
+        await aoEscolher(b.dataset.formato);
+        fecharModal();
+        toast('Arquivo gerado.', 'ok');
+      } catch (erro) {
+        $$('[data-formato]').forEach(x => { x.disabled = false; });
+        ocupado(b, false, texto);
+        const aviso = $('#aviso-formato');
+        aviso.className = 'aviso visivel erro';
+        aviso.textContent = 'Não foi possível gerar. ' + (erro?.message ?? '');
+      }
+    });
+  });
+}
+
+/* ------------------------------------------- um requisito por vez */
+
+function gerarUmRequisito(chave) {
   const u = unidadePorChave(chave);
-  const resposta = estado.respostas.get(chave);
+  if (!u) return;
 
-  if (!u || !resposta) { toast('Salve o requisito antes de gerar o PDF.', 'erro'); return; }
-
-  const secao = estado.secoes.find(s =>
-    s.requisitos.some(r => r.id === u.requisitoId));
-  const requisito = secao?.requisitos.find(r => r.id === u.requisitoId);
+  const secao = estado.secoes.find(s => s.requisitos.some(r => r.id === u.requisitoId));
+  const requisito = secao.requisitos.find(r => r.id === u.requisitoId);
   const indice = secao.requisitos.indexOf(requisito) + 1;
 
-  const texto = botao.innerHTML;
-  ocupado(botao, true, texto);
+  escolherFormato(
+    'Gerar relatório do requisito',
+    'Sai no papel timbrado da pasta, em Times New Roman 12.',
+    async formato => {
+      const R = await import('./relatorio.js');
 
-  try {
-    const { gerarPdfRequisito, baixarPdf, nomeArquivo } = await import('./relatorio.js');
+      const bloco = R.blocoRequisito(requisito, indice, acharResposta);
 
-    const bytes = await gerarPdfRequisito({
-      secao: secao.titulo,
-      requisito: `${indice}. ${requisito.titulo}`,
-      alinea: u.rotulo ? `${u.rotulo}) ${u.titulo}` : null,
-      timbrado: estado.pasta.formulario.timbrado_path,
-      unidade: u,
-      partes: resposta.partes
-    });
+      // só a unidade pedida, não as irmãs
+      if (u.alineaId) {
+        const rotulo = u.rotulo;
+        bloco.unidades = bloco.unidades.filter(x => x.alinea?.startsWith(rotulo + ')'));
+      }
 
-    baixarPdf(bytes, nomeArquivo(
-      estado.pasta.candidato.nome,
-      estado.pasta.formulario.nome,
-      u.rotulo ? `${indice}${u.rotulo}` : String(indice)
-    ));
+      const arquivo = await R.gerarRelatorio(
+        { paginas: [{ secao: secao.titulo, ...bloco }], quebraPorRequisito: false },
+        formato,
+        estado.pasta.formulario.timbrado_path
+      );
 
-    ocupado(botao, false, texto);
-    toast('PDF gerado.', 'ok');
+      R.baixarArquivo(arquivo, R.nomeArquivo([
+        estado.pasta.candidato.nome,
+        estado.pasta.formulario.nome,
+        u.rotulo ? `${indice}${u.rotulo}` : String(indice)
+      ], arquivo.extensao));
+    }
+  );
+}
 
-  } catch (erro) {
-    ocupado(botao, false, texto);
-    toast('Não foi possível gerar o PDF. ' + (erro?.message ?? ''), 'erro');
-  }
+/* ------------------------------------------------- a pasta inteira */
+
+function gerarPastaCompleta() {
+  escolherFormato(
+    'Gerar pasta completa',
+    'Todos os requisitos, um por página, incluindo os que ainda estão em ' +
+    'branco. A seção aparece uma vez, antes dos requisitos dela. ' +
+    'Pode demorar alguns segundos se houver muitas fotos.',
+    async formato => {
+      const R = await import('./relatorio.js');
+
+      const paginas = [];
+
+      for (const secao of estado.secoes) {
+        secao.requisitos.forEach((req, i) => {
+          paginas.push({
+            // a seção só na primeira página dela
+            secao: i === 0 ? secao.titulo : null,
+            ...R.blocoRequisito(req, i + 1, acharResposta)
+          });
+        });
+      }
+
+      const arquivo = await R.gerarRelatorio(
+        { paginas, quebraPorRequisito: true },
+        formato,
+        estado.pasta.formulario.timbrado_path
+      );
+
+      R.baixarArquivo(arquivo, R.nomeArquivo([
+        estado.pasta.candidato.nome,
+        estado.pasta.formulario.nome,
+        'pasta completa'
+      ], arquivo.extensao));
+    }
+  );
 }
 
 /* foto escolhida */

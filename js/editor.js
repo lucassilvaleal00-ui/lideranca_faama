@@ -156,7 +156,8 @@ function desenharSecoes() {
     <section class="secao" data-secao="${s.id}">
       <div class="secao-topo">
         <input type="text" value="${esc(s.titulo)}" data-titulo-secao="${s.id}"
-               aria-label="Título da seção">
+               aria-label="Título da seção" style="text-transform:uppercase"
+               title="O título da seção fica sempre em maiúsculas">
         <span class="conta-req">${s.requisitos.length} req.</span>
         <button class="botao-icone" data-subir-secao="${s.id}"
                 ${iSecao === 0 ? 'disabled' : ''} title="Subir">↑</button>
@@ -349,12 +350,22 @@ $('#lista-secoes').addEventListener('change', e => {
   marcarSujo(e.target);
 });
 
+/* Título de seção é sempre em maiúsculas — vira maiúscula enquanto se
+   digita, e é gravado assim, não só exibido. */
+$('#lista-secoes').addEventListener('input', e => {
+  if (!e.target.dataset?.tituloSecao) return;
+
+  const cursor = e.target.selectionStart;
+  e.target.value = e.target.value.toUpperCase();
+  e.target.setSelectionRange(cursor, cursor);
+});
+
 /* título da seção salva ao sair do campo */
 $('#lista-secoes').addEventListener('focusout', async e => {
   const id = e.target.dataset?.tituloSecao;
   if (!id) return;
 
-  const titulo = e.target.value.trim();
+  const titulo = e.target.value.trim().toUpperCase();
   const secao = estado.secoes.find(s => s.id === id);
   if (!titulo || titulo === secao.titulo) { e.target.value = secao.titulo; return; }
 
@@ -398,7 +409,7 @@ $('#btn-nova-secao').addEventListener('click', async e => {
 
   const { error } = await sb.from('secoes').insert({
     formulario_id: estado.atual.id,
-    titulo: `Seção ${romanos[n] ?? n + 1}`,
+    titulo: `SEÇÃO ${romanos[n] ?? n + 1}`,
     ordem: n + 1
   });
 
