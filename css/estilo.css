@@ -1464,3 +1464,55 @@ table.dados td.nome-celula {
 .timbrado-linha .corpo small  { font-size: .78rem; color: var(--texto-suave); }
 
 .timbrado-linha .botao { width: auto; padding: 8px 14px; font-size: .84rem; }
+
+/* =====================================================================
+   LOGOS DAS CLASSES
+   Cores das barras tiradas dos próprios emblemas.
+   ===================================================================== */
+
+.card-topo {
+  display: flex; align-items: center; gap: 10px;
+}
+.card-topo img {
+  width: 30px; height: 30px; flex: none;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.28));
+}
+
+.card-topo.aventureiros  { background: linear-gradient(100deg, #1f61af, #14447d); }
+.card-topo.desbravadores { background: linear-gradient(100deg, #e8291a, #a81c10); }
+.card-topo.jovens {
+  background: linear-gradient(100deg, #f5cd09, #d2ac05);
+  color: #10214a;                       /* amarelo pede texto escuro */
+}
+
+/* logo ao lado do nome da classe */
+
+.classe-topo { align-items: center; }
+
+.emblema-classe {
+  width: 34px; height: 34px; flex: none;
+  object-fit: contain;
+}
+
+/* --------------------------------------- cabeçalho do editor e da pasta */
+
+.cabecalho-formulario img.emblema,
+.faixa-pasta img.emblema {
+  width: 54px; height: 54px; flex: none;
+  object-fit: contain;
+  background: rgba(255,255,255,.97);
+  border-radius: 12px;
+  padding: 4px;
+}
+
+@media (max-width: 480px) {
+  .cabecalho-formulario img.emblema,
+  .faixa-pasta img.emblema { width: 44px; height: 44px; }
+}
+
+/* emblema na lista dos 5 formulários do editor */
+
+.cartao-formulario .emblema-lista {
+  width: 42px; height: 42px; flex: none; object-fit: contain;
+}
