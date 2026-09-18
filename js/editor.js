@@ -10,6 +10,7 @@
 
 import { sb, exigirSessao, traduzErro } from './cliente.js';
 import { montarBarra, toast, esc, $, $$ } from './ui.js';
+import { emblemaClasse } from './emblemas.js';
 
 const estado = {
   formularios: [], atual: null, secoes: [],
@@ -66,6 +67,7 @@ async function carregarFormularios() {
   $('#grade-formularios').innerHTML = estado.formularios.map(f => `
     <button class="cartao-formulario" data-form="${f.id}">
       <span class="faixa ${f.categoria}"></span>
+      <img class="emblema-lista" src="${emblemaClasse(f.chave)}" alt="">
       <span>
         <h3>${esc(f.nome)}</h3>
         <p>${porForm.get(f.id) ?? 0} requisito(s)</p>
@@ -88,6 +90,7 @@ $('#voltar-lista').addEventListener('click', () => {
 async function abrirFormulario(id) {
   estado.atual = estado.formularios.find(f => f.id === id);
   $('#titulo-formulario').textContent = estado.atual.nome;
+  $('#emblema-formulario').src = emblemaClasse(estado.atual.chave);
   irPara('tela-editor');
   await carregarSecoes();
 }

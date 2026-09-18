@@ -12,7 +12,7 @@
      Times New Roman 12 em tudo, entrelinha 1,5.
      Seção, requisito e alínea em negrito.
      Descrição justificada com recuo de 1,25 cm na primeira linha.
-     Foto em no máximo 8 cm de largura por 5,5 cm de altura.
+     Foto em no máximo 10,15 cm de largura por 7 cm de altura.
      Legenda da foto em corpo 10.
 
    Sobre a fonte no PDF: o formato não embute Times New Roman (é
@@ -40,7 +40,7 @@ export const MARGEM_CM = {
   base:     4
 };
 
-const FOTO_CM = { largura: 8, altura: 5.5 };
+const FOTO_CM = { largura: 10.15, altura: 7 };
 
 const CORPO   = 12;
 const LEGENDA = 10;

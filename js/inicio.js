@@ -12,6 +12,7 @@
 
 import { sb, exigirSessao, traduzErro } from './cliente.js';
 import { montarBarra, toast, esc, $ } from './ui.js';
+import { emblemaClasse, emblemaCategoria } from './emblemas.js';
 
 const CATEGORIAS = [
   { chave: 'aventureiros',  titulo: 'Aventureiros'      },
@@ -59,6 +60,7 @@ function cardClasse(categoria, linhas) {
     return `
       <div class="classe">
         <div class="classe-topo">
+          <img class="emblema-classe" src="${emblemaClasse(l.chave)}" alt="">
           <span class="classe-nome">${esc(l.formulario)}</span>
           ${temPasta && l.pasta_status !== 'solicitada'
             ? `<span class="classe-conta">${p.feito}/${p.total} · ${p.pct}%</span>` : ''}
@@ -71,7 +73,10 @@ function cardClasse(categoria, linhas) {
 
   return `
     <section class="card">
-      <div class="card-topo ${categoria.chave}">${esc(categoria.titulo)}</div>
+      <div class="card-topo ${categoria.chave}">
+        <img src="${emblemaCategoria(categoria.chave)}" alt="">
+        ${esc(categoria.titulo)}
+      </div>
       <div class="card-corpo">${classes}</div>
     </section>`;
 }

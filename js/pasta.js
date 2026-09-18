@@ -15,6 +15,7 @@
 
 import { sb, exigirSessao, traduzErro } from './cliente.js';
 import { montarBarra, toast, esc, dataBR, $, $$ } from './ui.js';
+import { emblemaClasse } from './emblemas.js';
 import { comprimir, previa, ErroImagem } from './imagem.js';
 
 const estado = {
@@ -87,6 +88,7 @@ async function carregar() {
   estado.podeAvaliar = !estado.souDono &&
     ['administrador', 'revisor'].includes(estado.eu.tipo);
 
+  $('#emblema-pasta').src = emblemaClasse(pasta.formulario.chave);
   $('#titulo-pasta').textContent = pasta.formulario.nome;
   $('#sub-pasta').textContent = estado.souDono
     ? 'Seu cartão de liderança'
