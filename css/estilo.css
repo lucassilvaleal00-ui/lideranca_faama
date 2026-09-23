@@ -1516,3 +1516,333 @@ table.dados td.nome-celula {
 .cartao-formulario .emblema-lista {
   width: 42px; height: 42px; flex: none; object-fit: contain;
 }
+
+/* =====================================================================
+   CAIXA DE TEXTO LONGO — descrição do candidato
+   Justificada e com recuo de parágrafo, igual ao relatório que sai depois.
+   ===================================================================== */
+
+.texto-rico {
+  position: relative;
+  min-height: 240px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 14px 16px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-p);
+  background: var(--branco);
+  color: var(--texto);
+  font-family: var(--fonte);
+  font-size: .95rem;
+  line-height: 1.7;
+  text-align: justify;
+  hyphens: auto;
+}
+
+.texto-rico:focus {
+  outline: none;
+  border-color: var(--azul-claro);
+  box-shadow: 0 0 0 3px rgba(47,111,208,.16);
+}
+
+.texto-rico > * {
+  margin: 0;
+  text-indent: 1.25cm;
+}
+
+.texto-rico.travado {
+  background: #f7f9fc;
+  color: var(--texto-suave);
+  min-height: 0;
+}
+
+.texto-rico.vazio::before {
+  content: attr(data-vazio);
+  position: absolute;
+  left: 16px;
+  top: 14px;
+  color: #9aa6ba;
+  pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  .texto-rico { min-height: 200px; }
+  .texto-rico > * { text-indent: 1cm; }
+}
+
+/* =====================================================================
+   SALVAMENTO AUTOMÁTICO
+   ===================================================================== */
+
+.auto-salvar {
+  position: sticky;
+  top: 8px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 11px 14px;
+  border-radius: var(--raio-p);
+  font-size: .85rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  box-shadow: var(--sombra);
+}
+
+.auto-salvar .ponto {
+  width: 9px; height: 9px; border-radius: 50%;
+  flex: none; background: currentColor;
+}
+
+.auto-salvar.ok       { background: #e7f6ee; color: #0e5c37; border-color: #b7e2cb; }
+.auto-salvar.pendente { background: #fff6e0; color: #7a5600; border-color: #f2dca6; }
+.auto-salvar.salvando { background: #eaf1fd; color: #123a7a; border-color: #c3d7f6; }
+.auto-salvar.erro     { background: #fdecea; color: #8c1c13; border-color: #f5c6c2; }
+
+.auto-salvar.pendente .ponto { animation: pulsa 1.2s ease-in-out infinite; }
+
+@keyframes pulsa { 50% { opacity: .25; } }
+
+.requisito.salvando, .alinea.salvando, .questao.salvando { border-color: var(--azul-claro); }
+.requisito.com-erro, .alinea.com-erro, .questao.com-erro { border-color: var(--vermelho); }
+.requisito.com-erro [data-estado],
+.alinea.com-erro [data-estado],
+.questao.com-erro [data-estado] { color: var(--vermelho); font-weight: 700; }
+
+.fecha-editor {
+  margin: 22px 0 8px;
+  padding: 18px;
+  background: var(--branco);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  text-align: center;
+  box-shadow: var(--sombra);
+}
+
+.fecha-editor p {
+  margin: 0 auto 14px;
+  max-width: 460px;
+  font-size: .85rem;
+  line-height: 1.55;
+  color: var(--texto-suave);
+}
+
+.fecha-editor .botao { width: auto; padding: 12px 30px; }
+
+/* =====================================================================
+   EDITOR DA PROVA PDL
+   ===================================================================== */
+
+.questao {
+  background: var(--branco);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  padding: 14px;
+  margin-bottom: 12px;
+  box-shadow: var(--sombra);
+}
+
+.questao-topo { display: flex; align-items: flex-start; gap: 8px; }
+
+.questao-topo .ordem {
+  flex: none;
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: var(--marinho-800);
+  color: #fff;
+  font-size: .85rem;
+  font-weight: 700;
+}
+
+.questao-topo textarea {
+  flex: 1;
+  min-height: 52px;
+  resize: vertical;
+}
+
+.alternativas { margin: 12px 0 0; display: grid; gap: 8px; }
+
+.alternativa {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-p);
+  background: #fafbfe;
+}
+
+.alternativa.certa { border-color: var(--verde); background: #f0faf5; }
+
+.alternativa input[type="text"] { margin: 0; border: 0; background: transparent; }
+.alternativa input[type="text"]:focus { outline: none; }
+
+.marca-certa { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.marca-certa input { margin: 0; accent-color: var(--verde); }
+
+.marca-certa .letra {
+  width: 26px; height: 26px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: #e7ecf6;
+  color: var(--marinho-800);
+  font-weight: 700;
+  font-size: .82rem;
+}
+
+.alternativa.certa .marca-certa .letra { background: var(--verde); color: #fff; }
+
+.questao-rodape {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.questao-rodape .estado {
+  margin-right: auto;
+  font-size: .78rem;
+  color: var(--texto-suave);
+}
+
+/* =====================================================================
+   PROVA — TELA DO CANDIDATO
+   ===================================================================== */
+
+.texto-prova {
+  margin: 0 0 14px;
+  font-size: .95rem;
+  line-height: 1.65;
+  text-align: justify;
+}
+
+.questao-prova {
+  background: var(--branco);
+  border: 1px solid var(--borda);
+  border-left: 4px solid var(--borda);
+  border-radius: var(--raio);
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: var(--sombra);
+}
+
+.questao-prova.respondida { border-left-color: var(--azul-claro); }
+
+.questao-prova h3 {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0 0 14px;
+  font-size: .97rem;
+  line-height: 1.5;
+  font-weight: 600;
+}
+
+.questao-prova h3 .ordem {
+  flex: none;
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: var(--marinho-800);
+  color: #fff;
+  font-size: .82rem;
+}
+
+.opcoes { display: grid; gap: 8px; }
+
+.opcao {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-p);
+  cursor: pointer;
+  font-size: .92rem;
+  line-height: 1.45;
+}
+
+.opcao:hover { background: #f7f9fe; }
+.opcao input { margin: 0; accent-color: var(--azul-claro); }
+.opcao.marcada { border-color: var(--azul-claro); background: #eef4fd; }
+
+.opcao .letra {
+  flex: none;
+  width: 26px; height: 26px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: #e7ecf6;
+  color: var(--marinho-800);
+  font-weight: 700;
+  font-size: .8rem;
+}
+
+.opcao.marcada .letra { background: var(--azul-claro); color: #fff; }
+
+/* -------------------------------------------------------- resultado */
+
+.resultado, .porta-prova { text-align: center; }
+
+.selo-resultado {
+  font-size: 2.6rem;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.nota-grande {
+  margin: 6px 0 0;
+  font-size: 3rem;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--marinho-800);
+}
+
+.resultado.aprovado .nota-grande { color: var(--verde); }
+.resultado.reprovado .nota-grande { color: var(--vermelho); }
+
+.acoes-resultado {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.acoes-resultado .botao { width: auto; padding: 12px 24px; }
+
+/* =====================================================================
+   MODELO DE CERTIFICADO — prévia no painel do administrador
+   ===================================================================== */
+
+.previa-certificado {
+  position: relative;
+  margin-top: 14px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-p);
+  overflow: hidden;
+  background: #eef1f6;
+  line-height: 0;
+}
+
+.previa-certificado img { width: 100%; height: auto; display: block; }
+
+.nome-previa {
+  position: absolute;
+  left: 0; right: 0;
+  text-align: center;
+  font-family: Georgia, "Times New Roman", serif;
+  color: #0d1530;
+  line-height: 1.1;
+  pointer-events: none;
+}
+
+.titulo-secao-lista {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--marinho-800);
+}
