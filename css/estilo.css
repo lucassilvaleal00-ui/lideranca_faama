@@ -1846,3 +1846,47 @@ table.dados td.nome-celula {
   font-weight: 700;
   color: var(--marinho-800);
 }
+
+/* =====================================================================
+   PROVA PDL NA TELA INICIAL
+   Uma linha logo abaixo da pasta de Jovens.
+   ===================================================================== */
+
+.linha-prova {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding: 9px 11px;
+  border-radius: var(--raio-p);
+  background: #f2f5fb;
+  border: 1px dashed #c9d5e9;
+}
+
+.linha-prova.aprovado {
+  background: #f0faf5;
+  border: 1px solid #b7e2cb;
+}
+
+.selo-prova {
+  font-size: .82rem;
+  font-weight: 700;
+  color: var(--verde);
+  margin-right: auto;
+}
+
+.selo-prova.pendente { color: var(--texto-suave); font-weight: 600; }
+
+.linha-prova .botao {
+  width: auto;
+  padding: 7px 13px;
+  font-size: .82rem;
+  margin: 0;
+}
+
+.aguardando-modelo {
+  font-size: .76rem;
+  color: var(--texto-suave);
+  font-style: italic;
+}
