@@ -113,67 +113,14 @@ async function carregar() {
     return;
   }
 
-  /* Algumas pastas só abrem depois de uma prova — hoje, a de Jovens.
-     A trava também existe no banco; aqui ela só é explicada. */
+  /* A pasta de Jovens tem a prova PDL ao lado — ela não tranca nada,
+     mas quem já passou baixa o certificado aqui dentro. */
   const { data: prova } = await sb.rpc('estado_prova',
     { p_formulario: pasta.formulario_id });
 
   estado.prova = prova ?? null;
 
-  if (estado.souDono && prova?.exigida && !prova.aprovado) {
-    $('#conta-geral').textContent = '—';
-    $('#barra-geral').style.width = '0%';
-    $('#conteudo-pasta').innerHTML = portaDaProva(prova);
-    return;
-  }
-
   await carregarConteudo();
-}
-
-/** O que o candidato vê enquanto a prova não foi vencida. */
-function portaDaProva(p) {
-  const quando = p.disponivel_em
-    ? new Date(p.disponivel_em).toLocaleString('pt-BR',
-        { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-    : null;
-
-  const podeFazer = p.liberada && p.usadas < p.permitidas;
-  const pendente  = p.pedido?.status === 'pendente';
-
-  return `
-  <section class="bloco porta-prova">
-    <div class="selo-resultado">🔒</div>
-    <h2 style="justify-content:center">Esta pasta abre com a prova PDL</h2>
-
-    <p class="dica-campo" style="text-align:center;max-width:460px;margin:0 auto 16px">
-      Os requisitos de ${esc(estado.pasta.formulario.nome)} só ficam disponíveis
-      depois que você for aprovado na prova, com nota
-      <strong>${Number(p.nota_minima).toFixed(1).replace('.', ',')}</strong> ou mais.
-    </p>
-
-    ${!p.liberada
-      ? `<div class="aviso visivel info">
-           ${quando
-             ? `A prova abre em <strong>${esc(quando)}</strong>.`
-             : 'A data de abertura ainda não foi definida pelo administrador.'}
-         </div>`
-      : podeFazer
-        ? `<div class="acoes-resultado">
-             <button class="botao botao-dourado" id="btn-ir-prova"
-                     style="width:auto;padding:12px 26px">Fazer a prova agora</button>
-           </div>`
-        : pendente
-          ? `<div class="aviso visivel info">
-               Seu pedido de nova tentativa está aguardando liberação de um
-               revisor ou do administrador.</div>`
-          : `<div class="aviso visivel info">
-               Você já usou a tentativa desta prova. Peça uma nova tentativa
-               na tela da prova.</div>
-             <div class="acoes-resultado">
-               <button class="botao botao-principal" id="btn-ir-prova">
-                 Abrir a prova</button>
-             </div>`}
-  </section>`;
 }
 
 async function carregarConteudo() {
@@ -518,7 +465,6 @@ function unidadePorChave(chave) {
 }
 
 $('#conteudo-pasta').addEventListener('click', async e => {
-  if (e.target.closest('#btn-ir-prova')) { location.href = 'prova.html'; return; }
   if (e.target.closest('#btn-certificado-pasta')) {
     return baixarCertificado(e.target.closest('button'));
   }

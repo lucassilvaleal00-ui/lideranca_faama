@@ -2,8 +2,8 @@
    Prova PDL — tela do candidato.
 
    Regras, todas garantidas pelo banco (esta tela só as explica):
-     · a prova abre na data marcada pelo administrador;
-     · vale uma tentativa — a segunda depende de um pedido aprovado;
+     · a prova fica sempre aberta para quem está inscrito na pasta;
+     · pode ser refeita quantas vezes for preciso;
      · a correção acontece no servidor, não aqui;
      · aprovado é quem tira a nota mínima ou mais;
      · quem passa baixa o certificado quantas vezes quiser.
@@ -113,11 +113,11 @@ function desenhar() {
   const s = estado.situacao;
   const alvo = $('#conteudo-prova');
 
-  if (s.aprovado)            return alvo.innerHTML = telaAprovado();
-  if (!s.exigida)            return alvo.innerHTML = telaSemQuestoes();
-  if (!s.liberada)           return alvo.innerHTML = telaAguardandoData();
-  if (s.usadas < s.permitidas) return abrirProva();
+  if (s.aprovado)          return alvo.innerHTML = telaAprovado();
+  if (!s.exigida)          return alvo.innerHTML = telaSemQuestoes();
+  if (!s.tentativas)       return abrirProva();
 
+  // já tentou antes: mostra o resultado e o convite a refazer
   alvo.innerHTML = telaReprovado();
 }
 
@@ -126,29 +126,11 @@ function telaSemQuestoes() {
   <section class="bloco">
     <h2>Prova ainda não montada</h2>
     <p class="dica-campo">
-      O administrador ainda não cadastrou as questões. Enquanto isso, a
-      pasta de Líder de Jovens continua liberada normalmente.
+      O administrador ainda não cadastrou as questões. Assim que cadastrar,
+      a prova aparece aqui e ao lado da sua pasta de Líder de Jovens.
     </p>
     <button class="botao botao-vazado" id="ir-inicio" style="width:auto;padding:11px 20px">
       Voltar ao início</button>
-  </section>`;
-}
-
-function telaAguardandoData() {
-  const s = estado.situacao;
-  return `
-  <section class="bloco">
-    <h2>A prova ainda não abriu</h2>
-    <p class="dica-campo" style="margin-bottom:14px">
-      ${s.disponivel_em
-        ? `Ela fica disponível a partir de <strong>${esc(quando(s.disponivel_em))}</strong>.`
-        : 'A data de abertura ainda não foi definida pelo administrador.'}
-    </p>
-    <div class="aviso visivel info">
-      São ${s.questoes} questão(ões) de múltipla escolha. É preciso tirar
-      <strong>${esc(nota(s.nota_minima))}</strong> ou mais para liberar os
-      requisitos da pasta de Líder de Jovens.
-    </div>
   </section>`;
 }
 
@@ -164,16 +146,11 @@ function telaAprovado() {
            <p class="dica-campo" style="text-align:center">
              ${u.acertos} de ${u.total} questões · ${esc(quando(u.enviada_em))}</p>` : ''}
 
-    <div class="aviso visivel info" style="margin-top:14px">
-      A pasta de <strong>Líder de Jovens</strong> está liberada. Você já pode
-      preencher os requisitos.
-    </div>
-
     <div class="acoes-resultado">
       ${s.tem_certificado
-        ? '<button class="botao botao-dourado" id="btn-certificado">🎓 Baixar certificado</button>'
+        ? '<button class="botao botao-dourado" id="btn-certificado">🎓 Gerar certificado</button>'
         : `<div class="dica-campo">O modelo do certificado ainda não foi enviado
-             pelo administrador. Assim que for, o botão de download aparece aqui.</div>`}
+             pelo administrador. Assim que for, o botão aparece aqui.</div>`}
       <button class="botao botao-principal" id="ir-pasta">Ir para a pasta</button>
     </div>
   </section>`;
@@ -182,31 +159,25 @@ function telaAprovado() {
 function telaReprovado() {
   const s = estado.situacao;
   const u = s.ultima;
-  const pedidoPendente = s.pedido?.status === 'pendente';
 
   return `
   <section class="bloco resultado reprovado">
     <div class="selo-resultado">📄</div>
-    <h2 style="justify-content:center">Prova não alcançou a nota mínima</h2>
+    <h2 style="justify-content:center">Ainda falta alcançar a nota</h2>
     ${u ? `<p class="nota-grande">${esc(nota(u.nota))}</p>
            <p class="dica-campo" style="text-align:center">
              ${u.acertos} de ${u.total} questões · mínimo ${esc(nota(s.nota_minima))}
              · ${esc(quando(u.enviada_em))}</p>` : ''}
 
-    ${pedidoPendente
-      ? `<div class="aviso visivel info" style="margin-top:14px">
-           <strong>Pedido enviado.</strong> Um revisor ou o administrador
-           precisa liberar a nova tentativa. Você recebe um aviso aqui no
-           aplicativo assim que isso acontecer.
-         </div>`
-      : `<div class="aviso visivel info" style="margin-top:14px">
-           Você usou a tentativa desta prova. Para refazer, peça uma nova
-           tentativa — quem acompanha seus cartões decide.
-         </div>
-         <div class="acoes-resultado">
-           <button class="botao botao-principal" id="btn-nova-tentativa">
-             Tentar novamente</button>
-         </div>`}
+    <div class="aviso visivel info" style="margin-top:14px">
+      Você pode refazer a prova quantas vezes precisar. Vale a melhor
+      tentativa: assim que alcançar ${esc(nota(s.nota_minima))}, fica aprovado.
+      ${s.tentativas > 1 ? `Já são ${s.tentativas} tentativas.` : ''}
+    </div>
+
+    <div class="acoes-resultado">
+      <button class="botao botao-principal" id="btn-refazer">Fazer a prova de novo</button>
+    </div>
   </section>`;
 }
 
@@ -230,10 +201,8 @@ async function abrirProva() {
       ${s.texto_topo ? `<p class="texto-prova">${esc(s.texto_topo)}</p>` : ''}
       <div class="aviso visivel info">
         ${estado.questoes.length} questão(ões). Aprovação com
-        <strong>${esc(nota(s.nota_minima))}</strong> ou mais.
-        ${s.usadas === 0
-          ? 'Você tem <strong>uma</strong> tentativa — responda com calma.'
-          : 'Esta é a tentativa liberada pelo revisor.'}
+        <strong>${esc(nota(s.nota_minima))}</strong> ou mais — e dá para
+        refazer quantas vezes precisar.
       </div>
     </section>
 
@@ -288,9 +257,9 @@ $('#conteudo-prova').addEventListener('click', e => {
   const b = e.target.closest('button');
   if (!b) return;
 
-  if (b.id === 'btn-entregar')        return confirmarEntrega();
-  if (b.id === 'btn-nova-tentativa')  return pedirNovaTentativa(b);
-  if (b.id === 'btn-certificado')     return baixarCertificado(b);
+  if (b.id === 'btn-entregar')    return confirmarEntrega();
+  if (b.id === 'btn-refazer')     return abrirProva();
+  if (b.id === 'btn-certificado') return baixarCertificado(b);
   if (b.id === 'ir-pasta')            return irParaPasta();
   if (b.id === 'ir-inicio')           { location.href = 'inicio.html'; }
 });
@@ -301,8 +270,8 @@ function confirmarEntrega() {
       <h2>Entregar a prova</h2><button class="fechar" data-fechar>×</button>
     </div>
     <p style="font-size:.9rem;line-height:1.55">
-      A correção é feita na hora e o resultado é definitivo. Se a nota não
-      alcançar o mínimo, a próxima tentativa depende de liberação.
+      A correção é feita na hora. Se a nota não alcançar o mínimo, é só
+      refazer a prova — não há limite de tentativas.
     </p>
     <div class="modal-acoes">
       <button class="botao botao-vazado" data-fechar>Revisar de novo</button>
@@ -337,23 +306,6 @@ async function enviar(e) {
 
   await carregar();
   scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-async function pedirNovaTentativa(botao) {
-  const texto = botao.textContent;
-  ocupado(botao, true, texto);
-
-  const { error } = await sb.from('pedidos_tentativa').insert({
-    prova_id: estado.situacao.prova_id,
-    candidato_id: estado.eu.id,
-    status: 'pendente'
-  });
-
-  ocupado(botao, false, texto);
-  if (error) { toast(traduzErro(error), 'erro'); return; }
-
-  toast('Pedido enviado. Você recebe um aviso quando for liberado.', 'ok');
-  await carregar();
 }
 
 async function baixarCertificado(botao) {

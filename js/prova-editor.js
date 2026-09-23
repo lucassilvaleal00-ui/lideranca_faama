@@ -1,8 +1,9 @@
 /* =====================================================================
    Editor da Prova PDL — só administrador.
 
-   A prova destrava a pasta de Líder de Jovens: sem aprovação nela, o
-   candidato não consegue preencher requisito nenhum daquela pasta.
+   A prova fica ao lado da pasta de Líder de Jovens, sempre aberta. Ela
+   não tranca nada: o candidato faz quando quiser e repete quantas vezes
+   precisar até alcançar a nota mínima.
 
    Uma coisa importante sobre o gabarito: a alternativa correta fica
    guardada numa tabela que só o administrador enxerga. O candidato lê as
@@ -41,20 +42,6 @@ $('#fundo-modal').addEventListener('click', e => {
   if (e.target.id === 'fundo-modal') fecharModal();
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') fecharModal(); });
-
-/** "2026-03-01T19:00" <-> timestamptz */
-function paraCampoData(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  const p = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}` +
-         `T${p(d.getHours())}:${p(d.getMinutes())}`;
-}
-
-const dataPorExtenso = iso => iso
-  ? new Date(iso).toLocaleString('pt-BR',
-      { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-  : null;
 
 /* ------------------------------------------------- salvamento automático */
 
@@ -100,7 +87,6 @@ async function carregar() {
   $('#sub-prova').textContent = `Pasta de ${data.formulario?.nome ?? '—'}`;
   $('#p-texto').value = data.texto_topo ?? '';
   $('#p-nota').value  = data.nota_minima ?? 7;
-  $('#p-data').value  = paraCampoData(data.disponivel_em);
 
   desenharQuestoes();
   resumir();
@@ -109,13 +95,11 @@ async function carregar() {
 function resumir() {
   const semGabarito = estado.questoes.filter(q => !q.alternativas.some(a => a.correta)).length;
   const curtas = estado.questoes.filter(q => q.alternativas.length < 2).length;
-  const quando = dataPorExtenso(estado.prova?.disponivel_em);
 
   const problemas = [];
   if (!estado.questoes.length) problemas.push('a prova ainda não tem questões');
   if (semGabarito) problemas.push(`${semGabarito} questão(ões) sem alternativa correta marcada`);
   if (curtas) problemas.push(`${curtas} questão(ões) com menos de duas alternativas`);
-  if (!quando) problemas.push('falta definir a data de disponibilização');
 
   const caixa = $('#resumo-prova');
 
@@ -128,9 +112,10 @@ function resumir() {
 
   caixa.className = 'aviso visivel info';
   caixa.innerHTML =
-    `${estado.questoes.length} questão(ões). Fica disponível em
-     <strong>${esc(quando)}</strong> para todos os candidatos inscritos na pasta.
-     Aprovação com nota <strong>${esc(String(estado.prova.nota_minima))}</strong> ou mais.`;
+    `${estado.questoes.length} questão(ões), disponíveis para todos os
+     candidatos inscritos na pasta. Aprovação com nota
+     <strong>${esc(String(estado.prova.nota_minima))}</strong> ou mais, em
+     quantas tentativas forem necessárias.`;
 }
 
 /* ============================================================= DESENHO */
@@ -211,15 +196,10 @@ function pintar(cartao, texto, classe = '') {
 async function gravarProva() {
   const texto = $('#p-texto').value.trim() || null;
   const nota  = Number($('#p-nota').value);
-  const campoData = $('#p-data').value;
 
   if (!(nota > 0 && nota <= 10)) throw new Error('a nota mínima precisa ficar entre 1 e 10');
 
-  const mudanca = {
-    texto_topo: texto,
-    nota_minima: nota,
-    disponivel_em: campoData ? new Date(campoData).toISOString() : null
-  };
+  const mudanca = { texto_topo: texto, nota_minima: nota };
 
   const { error } = await sb.from('provas').update(mudanca).eq('id', estado.prova.id);
   if (error) throw new Error(traduzErro(error));

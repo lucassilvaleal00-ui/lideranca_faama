@@ -14,6 +14,11 @@ import { sb, exigirSessao, traduzErro } from './cliente.js';
 import { montarBarra, toast, esc, $ } from './ui.js';
 import { emblemaClasse, emblemaCategoria } from './emblemas.js';
 
+/* Situação do candidato na prova PDL — carregada junto com o progresso.
+   A prova fica ao lado da pasta de Jovens; ela não tranca nada. */
+let provaJA = null;
+let estadoEu = null;
+
 const CATEGORIAS = [
   { chave: 'aventureiros',  titulo: 'Aventureiros'      },
   { chave: 'desbravadores', titulo: 'Desbravadores'     },
@@ -68,6 +73,7 @@ function cardClasse(categoria, linhas) {
         ${temPasta && l.pasta_status !== 'solicitada'
           ? `<div class="trilho"><i style="width:${p.pct}%"></i></div>` : ''}
         <div class="classe-rodape">${etiqueta}${acao}</div>
+        ${linhaProva(l)}
       </div>`;
   }).join('');
 
@@ -79,6 +85,61 @@ function cardClasse(categoria, linhas) {
       </div>
       <div class="card-corpo">${classes}</div>
     </section>`;
+}
+
+/* ------------------------------------------------------------ prova PDL */
+
+/** Aparece embaixo da pasta de Jovens, para quem já está inscrito nela. */
+function linhaProva(l) {
+  if (l.chave !== 'lider_jovens') return '';
+  if (!l.pasta_id || l.pasta_status === 'solicitada') return '';
+  if (!provaJA?.exigida) return '';        // prova ainda sem questões
+
+  if (provaJA.aprovado) {
+    return `
+      <div class="linha-prova aprovado">
+        <span class="selo-prova">🎓 Aprovado na prova PDL</span>
+        ${provaJA.tem_certificado
+          ? '<button class="botao botao-dourado" data-certificado>Gerar certificado</button>'
+          : '<span class="aguardando-modelo">certificado ainda não disponível</span>'}
+      </div>`;
+  }
+
+  return `
+    <div class="linha-prova">
+      <span class="selo-prova pendente">Prova PDL</span>
+      <button class="botao botao-vazado" data-prova>Realizar prova PDL</button>
+    </div>`;
+}
+
+async function gerarCertificado(botao) {
+  const texto = botao.textContent;
+  botao.disabled = true;
+  botao.innerHTML = '<span class="girando"></span>';
+
+  try {
+    const { data: prova } = await sb.from('provas')
+      .select('certificado_path, cert_nome_y, cert_nome_tamanho')
+      .eq('id', provaJA.prova_id).single();
+
+    const C = await import('./certificado.js');
+
+    const arquivo = await C.gerarCertificado({
+      caminho: prova.certificado_path,
+      nome: estadoEu.nome,
+      y: Number(prova.cert_nome_y),
+      tamanho: Number(prova.cert_nome_tamanho)
+    });
+
+    C.baixar(arquivo, C.nomeArquivo(['Certificado PDL', estadoEu.nome], 'pdf'));
+    toast('Certificado gerado.', 'ok');
+
+  } catch (erro) {
+    toast(erro?.message ?? 'Não consegui gerar o certificado.', 'erro');
+  } finally {
+    botao.disabled = false;
+    botao.innerHTML = texto;
+  }
 }
 
 /* ---------------------------------------------------------- ferramentas */
@@ -97,7 +158,7 @@ const FERRAMENTAS = [
     destino: 'editor.html', perfis: ['administrador'] },
 
   { id: 'prova', simbolo: '🎓', titulo: 'Prova PDL',
-    texto: 'Monte as questões e marque a data em que a prova abre.',
+    texto: 'Monte as questões e defina a nota mínima da prova.',
     destino: 'prova-editor.html', perfis: ['administrador'] },
 
   { id: 'admin', simbolo: '⚙️', titulo: 'Painel do Administrador',
@@ -164,18 +225,35 @@ async function carregar() {
     return;
   }
 
+  const jovens = data.find(l => l.chave === 'lider_jovens');
+
+  provaJA = null;
+  if (jovens?.pasta_id && jovens.pasta_status !== 'solicitada') {
+    const { data: p } = await sb.rpc('estado_prova',
+      { p_formulario: jovens.formulario_id });
+    provaJA = p ?? null;
+  }
+
   $('#grade-classes').innerHTML = CATEGORIAS.map(c =>
     cardClasse(c, data.filter(l => l.categoria === c.chave))
   ).join('');
 
-  $('#grade-classes').addEventListener('click', e => {
-    const inscrever = e.target.closest('[data-inscrever]');
-    if (inscrever) { solicitarInscricao(inscrever.dataset.inscrever, inscrever); return; }
-
-    const abrir = e.target.closest('[data-abrir]');
-    if (abrir) location.href = `pasta.html?id=${abrir.dataset.abrir}`;
-  });
 }
+
+/* O ouvinte fica aqui fora: carregar() roda mais de uma vez e não pode
+   empilhar um ouvinte novo a cada passagem. */
+$('#grade-classes').addEventListener('click', e => {
+  if (e.target.closest('[data-prova]')) { location.href = 'prova.html'; return; }
+
+  const cert = e.target.closest('[data-certificado]');
+  if (cert) { gerarCertificado(cert); return; }
+
+  const inscrever = e.target.closest('[data-inscrever]');
+  if (inscrever) { solicitarInscricao(inscrever.dataset.inscrever, inscrever); return; }
+
+  const abrir = e.target.closest('[data-abrir]');
+  if (abrir) location.href = `pasta.html?id=${abrir.dataset.abrir}`;
+});
 
 /* ---------------------------------------------------------------- início */
 
@@ -183,6 +261,7 @@ async function carregar() {
   const perfil = await exigirSessao();
   if (!perfil) return;
 
+  estadoEu = perfil;
   await montarBarra(perfil);
 
   const primeiroNome = perfil.nome.trim().split(/\s+/)[0];
