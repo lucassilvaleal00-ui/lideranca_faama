@@ -17,10 +17,12 @@ import { sb, exigirSessao, traduzErro } from './cliente.js';
 import { montarBarra, toast, esc, dataBR, $, $$ } from './ui.js';
 import { emblemaClasse } from './emblemas.js';
 import { comprimir, previa, ErroImagem } from './imagem.js';
+import { caixaTexto, lerTexto, ligarTextoRico } from './textorico.js';
 
 const estado = {
   eu: null, pasta: null, secoes: [], respostas: new Map(),
-  souDono: false, podeAvaliar: false, urlsFoto: new Map(), pendentesFoto: new Map()
+  souDono: false, podeAvaliar: false, urlsFoto: new Map(), pendentesFoto: new Map(),
+  prova: null
 };
 
 const ROTULO = { pendente: 'Pendente', concluido: 'Concluído', aprovado: 'Aprovado' };
@@ -111,7 +113,67 @@ async function carregar() {
     return;
   }
 
+  /* Algumas pastas só abrem depois de uma prova — hoje, a de Jovens.
+     A trava também existe no banco; aqui ela só é explicada. */
+  const { data: prova } = await sb.rpc('estado_prova',
+    { p_formulario: pasta.formulario_id });
+
+  estado.prova = prova ?? null;
+
+  if (estado.souDono && prova?.exigida && !prova.aprovado) {
+    $('#conta-geral').textContent = '—';
+    $('#barra-geral').style.width = '0%';
+    $('#conteudo-pasta').innerHTML = portaDaProva(prova);
+    return;
+  }
+
   await carregarConteudo();
+}
+
+/** O que o candidato vê enquanto a prova não foi vencida. */
+function portaDaProva(p) {
+  const quando = p.disponivel_em
+    ? new Date(p.disponivel_em).toLocaleString('pt-BR',
+        { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : null;
+
+  const podeFazer = p.liberada && p.usadas < p.permitidas;
+  const pendente  = p.pedido?.status === 'pendente';
+
+  return `
+  <section class="bloco porta-prova">
+    <div class="selo-resultado">🔒</div>
+    <h2 style="justify-content:center">Esta pasta abre com a prova PDL</h2>
+
+    <p class="dica-campo" style="text-align:center;max-width:460px;margin:0 auto 16px">
+      Os requisitos de ${esc(estado.pasta.formulario.nome)} só ficam disponíveis
+      depois que você for aprovado na prova, com nota
+      <strong>${Number(p.nota_minima).toFixed(1).replace('.', ',')}</strong> ou mais.
+    </p>
+
+    ${!p.liberada
+      ? `<div class="aviso visivel info">
+           ${quando
+             ? `A prova abre em <strong>${esc(quando)}</strong>.`
+             : 'A data de abertura ainda não foi definida pelo administrador.'}
+         </div>`
+      : podeFazer
+        ? `<div class="acoes-resultado">
+             <button class="botao botao-dourado" id="btn-ir-prova"
+                     style="width:auto;padding:12px 26px">Fazer a prova agora</button>
+           </div>`
+        : pendente
+          ? `<div class="aviso visivel info">
+               Seu pedido de nova tentativa está aguardando liberação de um
+               revisor ou do administrador.</div>`
+          : `<div class="aviso visivel info">
+               Você já usou a tentativa desta prova. Peça uma nova tentativa
+               na tela da prova.</div>
+             <div class="acoes-resultado">
+               <button class="botao botao-principal" id="btn-ir-prova">
+                 Abrir a prova</button>
+             </div>`}
+  </section>`;
 }
 
 async function carregarConteudo() {
@@ -222,9 +284,28 @@ function desenhar() {
   }).join('') + rodapePasta();
 }
 
+/** Quem passou na prova pode rebaixar o certificado sempre que quiser. */
+function blocoCertificado() {
+  const p = estado.prova;
+  if (!estado.souDono || !p?.aprovado || !p.tem_certificado) return '';
+
+  return `
+  <section class="bloco" style="text-align:center;margin-top:8px">
+    <h2 style="justify-content:center">Certificado da prova PDL</h2>
+    <p class="dica-campo" style="margin:-8px auto 16px;max-width:460px">
+      Seu certificado de conclusão da prova. Pode ser baixado quantas vezes
+      precisar — ele fica sempre aqui.
+    </p>
+    <button class="botao botao-dourado" id="btn-certificado-pasta"
+            style="width:auto;padding:12px 26px">
+      🎓 Baixar certificado
+    </button>
+  </section>`;
+}
+
 /** Bloco final: gerar a pasta inteira num arquivo só. */
 function rodapePasta() {
-  return `
+  return blocoCertificado() + `
   <section class="bloco" style="text-align:center;margin-top:8px">
     <h2 style="justify-content:center">Pasta completa</h2>
     <p class="dica-campo" style="margin:-8px auto 16px;max-width:460px">
@@ -331,8 +412,16 @@ function blocoParte(u, parte, i, status) {
       ${pedeDesc(u) ? `
         <div>
           <label>Descrição</label>
-          <textarea data-campo="descricao" ${travado ? 'disabled' : ''}
-            placeholder="Descreva o que foi feito…">${esc(parte.descricao ?? '')}</textarea>
+          ${caixaTexto({
+            campo: 'descricao',
+            valor: parte.descricao ?? '',
+            travado,
+            placeholder: 'Descreva o que foi feito…'
+          })}
+          <div class="dica-campo" style="margin-top:6px">
+            O texto sai justificado, com recuo de 1,25 cm — cada Enter começa
+            um parágrafo novo, do jeito que vai aparecer no relatório.
+          </div>
           ${u.dica_cumprimento
             ? `<div class="orientacao">${esc(u.dica_cumprimento)}</div>` : ''}
         </div>` : ''}
@@ -429,6 +518,10 @@ function unidadePorChave(chave) {
 }
 
 $('#conteudo-pasta').addEventListener('click', async e => {
+  if (e.target.closest('#btn-ir-prova')) { location.href = 'prova.html'; return; }
+  if (e.target.closest('#btn-certificado-pasta')) {
+    return baixarCertificado(e.target.closest('button'));
+  }
   if (e.target.closest('#btn-pasta-completa')) { gerarPastaCompleta(); return; }
 
   const cabeca = e.target.closest('[data-abrir]');
@@ -451,6 +544,36 @@ $('#conteudo-pasta').addEventListener('click', async e => {
   if (d.corrigir) return modalCorrecao(d.corrigir);
   if (d.pdf)      return gerarUmRequisito(d.pdf);
 });
+
+/* ========================================================= CERTIFICADO */
+
+async function baixarCertificado(botao) {
+  const texto = botao.innerHTML;
+  ocupado(botao, true, texto);
+
+  try {
+    const { data: prova } = await sb.from('provas')
+      .select('certificado_path, cert_nome_y, cert_nome_tamanho')
+      .eq('id', estado.prova.prova_id).single();
+
+    const C = await import('./certificado.js');
+
+    const arquivo = await C.gerarCertificado({
+      caminho: prova.certificado_path,
+      nome: estado.eu.nome,
+      y: Number(prova.cert_nome_y),
+      tamanho: Number(prova.cert_nome_tamanho)
+    });
+
+    C.baixar(arquivo, C.nomeArquivo(['Certificado PDL', estado.eu.nome], 'pdf'));
+    toast('Certificado gerado.', 'ok');
+
+  } catch (erro) {
+    toast(erro?.message ?? 'Não consegui gerar o certificado.', 'erro');
+  } finally {
+    ocupado(botao, false, texto);
+  }
+}
 
 /* ========================================================== RELATÓRIOS */
 
@@ -652,7 +775,8 @@ async function salvarUnidade(chave, botao, concluir) {
       if (!parte) continue;
 
       const data = bloco.querySelector('[data-campo="data"]')?.value || null;
-      const descricao = bloco.querySelector('[data-campo="descricao"]')?.value.trim() || null;
+      const caixaDesc = bloco.querySelector('[data-campo="descricao"]');
+      const descricao = caixaDesc ? (lerTexto(caixaDesc) || null) : null;
       const legenda = bloco.querySelector('[data-campo="legenda"]')?.value.trim() || null;
 
       const mudanca = { data_cumprimento: data, descricao, legenda };
@@ -772,5 +896,6 @@ $('#btn-voltar').addEventListener('click', () => {
 
   estado.eu = perfil;
   await montarBarra(perfil);
+  ligarTextoRico($('#conteudo-pasta'));
   carregar();
 })();

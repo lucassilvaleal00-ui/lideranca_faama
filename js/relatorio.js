@@ -365,12 +365,19 @@ async function montarWord(doc, timbradoBytes) {
     spacing: { line: ENTRELINHA_15, after: opcoes.depois ?? 0 }
   });
 
-  const justificado = t => new D.Paragraph({
-    children: [texto(t)],
-    alignment: D.AlignmentType.JUSTIFIED,
-    indent: { firstLine: Math.round(RECUO_CM * TWIP) },
-    spacing: { line: ENTRELINHA_15, after: 120 }
-  });
+  /* Um parágrafo por quebra de linha: o recuo de 1,25 cm entra em todos,
+     igual ao que a tela mostra enquanto o candidato escreve. */
+  const justificado = t => {
+    const partes = limpar(t).split(/\n+/).map(p => p.trim()).filter(Boolean);
+    if (!partes.length) return [];
+
+    return partes.map((par, i) => new D.Paragraph({
+      children: [texto(par)],
+      alignment: D.AlignmentType.JUSTIFIED,
+      indent: { firstLine: Math.round(RECUO_CM * TWIP) },
+      spacing: { line: ENTRELINHA_15, after: i === partes.length - 1 ? 120 : 0 }
+    }));
+  };
 
   const imagem = (bytes, legenda) => {
     const filhos = [new D.Paragraph({
@@ -455,7 +462,7 @@ async function montarWord(doc, timbradoBytes) {
         if (u.mostrarData) {
           filhos.push(paragrafo(`Data do cumprimento: ${dataBR(p.data)}`, { depois: 80 }));
         }
-        if (u.mostrarDescricao && p.descricao) filhos.push(justificado(p.descricao));
+        if (u.mostrarDescricao && p.descricao) filhos.push(...justificado(p.descricao));
         if (u.mostrarFoto && p.fotoBytes)      filhos.push(...imagem(p.fotoBytes, p.legenda));
       }
     }

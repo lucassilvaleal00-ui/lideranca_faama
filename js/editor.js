@@ -6,16 +6,36 @@
 
    Exclusão é LÓGICA (ativo = false): o requisito some para quem ainda não
    usou, mas tudo que candidatos já escreveram e fotografaram continua lá.
+
+   Salvamento: automático. Cada campo alterado é gravado sozinho depois de
+   um instante de silêncio, e o painel do topo mostra a situação. O botão
+   do rodapé só serve para fechar com a certeza de que nada ficou pendente.
    ===================================================================== */
 
 import { sb, exigirSessao, traduzErro } from './cliente.js';
 import { montarBarra, toast, esc, $, $$ } from './ui.js';
 import { emblemaClasse } from './emblemas.js';
+import { criarAutoSalvar } from './autosalvar.js';
 
 const estado = {
   formularios: [], atual: null, secoes: [],
   usoPorRequisito: new Map(), usoPorAlinea: new Map()
 };
+
+/* ------------------------------------------------- salvamento automático */
+
+const auto = criarAutoSalvar({
+  painel: $('#auto-salvar'),
+  salvar: async chave => {
+    const [tipo, id] = chave.split(':');
+    if (tipo === 'sec') return gravarSecao(id);
+    if (tipo === 'req') return gravarRequisito(id);
+    if (tipo === 'ali') return gravarAlinea(id);
+  }
+});
+
+/** Antes de redesenhar a tela, o que está pendente precisa estar no banco. */
+async function descarregar() { await auto.agora(); }
 
 /* ------------------------------------------------------------ utilidades */
 
@@ -92,6 +112,7 @@ async function abrirFormulario(id) {
   $('#titulo-formulario').textContent = estado.atual.nome;
   $('#emblema-formulario').src = emblemaClasse(estado.atual.chave);
   irPara('tela-editor');
+  auto.iniciar();
   await carregarSecoes();
 }
 
@@ -118,6 +139,12 @@ async function carregarSecoes() {
 
   await medirUso();
   desenharSecoes();
+}
+
+/** Grava o que estiver pendente e só então redesenha. */
+async function recarregar() {
+  await descarregar();
+  await carregarSecoes();
 }
 
 /** a, b, c, … a partir da ordem 1, 2, 3 */
@@ -261,7 +288,6 @@ function cartaoAlinea(a, i, total) {
       <span class="estado" data-estado>Salvo</span>
       <button class="botao-icone perigo" data-excluir-alinea="${a.id}"
               title="Excluir alínea">🗑️</button>
-      <button class="botao botao-principal" data-salvar-alinea="${a.id}">Salvar</button>
     </div>
   </div>`;
 }
@@ -306,7 +332,6 @@ function cartaoRequisito(r, i, total) {
       <span class="estado" data-estado>Salvo</span>
       <button class="botao botao-icone perigo" data-excluir-req="${r.id}"
               style="width:32px;height:32px" title="Excluir requisito">🗑️</button>
-      <button class="botao botao-principal" data-salvar-req="${r.id}">Salvar</button>
     </div>
   </div>`;
 }
@@ -318,13 +343,29 @@ function donoDoCampo(el) {
   return el.closest('.alinea') ?? el.closest('.requisito');
 }
 
+/** O <span> de estado próprio do cartão (nunca o de uma alínea de dentro). */
+function estadoDoCartao(cartao) {
+  return cartao.querySelector(':scope > .alinea-rodape [data-estado]')
+      ?? cartao.querySelector(':scope > .requisito-rodape [data-estado]');
+}
+
+function pintarCartao(cartao, texto, classe = '') {
+  if (!cartao) return;
+  cartao.classList.remove('sujo', 'salvando', 'com-erro');
+  if (classe) cartao.classList.add(classe);
+  const el = estadoDoCartao(cartao);
+  if (el) el.textContent = texto;
+}
+
+/** Qualquer alteração agenda a gravação — não há botão de salvar. */
 function marcarSujo(el) {
   const dono = donoDoCampo(el);
   if (!dono) return;
-  dono.classList.add('sujo');
-  const estadoEl = dono.querySelector(':scope > .alinea-rodape [data-estado]')
-                ?? dono.querySelector(':scope > .requisito-rodape [data-estado]');
-  if (estadoEl) estadoEl.textContent = 'Alterações não salvas';
+
+  pintarCartao(dono, 'Alterações não salvas', 'sujo');
+
+  const id = dono.dataset.alinea ?? dono.dataset.requisito;
+  auto.agendar(`${dono.dataset.alinea ? 'ali' : 'req'}:${id}`);
 }
 
 /** A dica só faz sentido quando o campo correspondente é pedido. */
@@ -363,20 +404,9 @@ $('#lista-secoes').addEventListener('input', e => {
   e.target.setSelectionRange(cursor, cursor);
 });
 
-/* título da seção salva ao sair do campo */
-$('#lista-secoes').addEventListener('focusout', async e => {
-  const id = e.target.dataset?.tituloSecao;
-  if (!id) return;
-
-  const titulo = e.target.value.trim().toUpperCase();
-  const secao = estado.secoes.find(s => s.id === id);
-  if (!titulo || titulo === secao.titulo) { e.target.value = secao.titulo; return; }
-
-  const { error } = await sb.from('secoes').update({ titulo }).eq('id', id);
-  if (error) { toast(traduzErro(error), 'erro'); e.target.value = secao.titulo; return; }
-
-  secao.titulo = titulo;
-  toast('Título da seção salvo.', 'ok');
+/* o título da seção também se salva sozinho */
+$('#lista-secoes').addEventListener('input', e => {
+  if (e.target.dataset?.tituloSecao) auto.agendar(`sec:${e.target.dataset.tituloSecao}`);
 });
 
 /* =========================================================== AÇÕES */
@@ -387,7 +417,6 @@ $('#lista-secoes').addEventListener('click', async e => {
   const d = alvo.dataset;
 
   if (d.novoRequisito)  return novoRequisito(d.novoRequisito, alvo);
-  if (d.salvarReq)      return salvarRequisito(d.salvarReq, alvo);
   if (d.excluirReq)     return excluirRequisito(d.excluirReq);
   if (d.excluirSecao)   return excluirSecao(d.excluirSecao);
   if (d.subirSecao)     return moverSecao(d.subirSecao, -1);
@@ -395,7 +424,6 @@ $('#lista-secoes').addEventListener('click', async e => {
   if (d.subirReq)       return moverRequisito(d.subirReq, -1);
   if (d.descerReq)      return moverRequisito(d.descerReq, +1);
   if (d.novaAlinea)     return novaAlinea(d.novaAlinea, alvo);
-  if (d.salvarAlinea)   return salvarAlinea(d.salvarAlinea, alvo);
   if (d.excluirAlinea)  return excluirAlinea(d.excluirAlinea);
   if (d.subirAlinea)    return moverAlinea(d.subirAlinea, -1);
   if (d.descerAlinea)   return moverAlinea(d.descerAlinea, +1);
@@ -419,7 +447,7 @@ $('#btn-nova-secao').addEventListener('click', async e => {
   ocupado(e.target, false, '+ Adicionar nova seção');
   if (error) { toast(traduzErro(error), 'erro'); return; }
 
-  await carregarSecoes();
+  await recarregar();
   $('#lista-secoes').lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 });
 
@@ -435,7 +463,7 @@ async function moverSecao(id, passo) {
     sb.from('secoes').update({ ordem: a.ordem }).eq('id', b.id)
   ]);
 
-  await carregarSecoes();
+  await recarregar();
 }
 
 async function excluirSecao(id) {
@@ -467,6 +495,13 @@ async function excluirSecao(id) {
   $('#confirmar').addEventListener('click', async e => {
     ocupado(e.target, true, 'Excluir seção');
 
+    // o que estava pendente aqui dentro deixa de fazer sentido
+    auto.descartar(`sec:${id}`);
+    for (const r of secao.requisitos) {
+      auto.descartar(`req:${r.id}`);
+      for (const a of r.alineas) auto.descartar(`ali:${a.id}`);
+    }
+
     await sb.from('requisitos').update({ ativo: false })
       .in('id', secao.requisitos.map(r => r.id));
 
@@ -476,7 +511,7 @@ async function excluirSecao(id) {
 
     toast('Seção excluída.', 'ok');
     fecharModal();
-    carregarSecoes();
+    recarregar();
   });
 }
 
@@ -498,7 +533,7 @@ async function novoRequisito(secaoId, botao) {
   ocupado(botao, false, '+ Adicionar requisito');
   if (error) { toast(traduzErro(error), 'erro'); return; }
 
-  await carregarSecoes();
+  await recarregar();
 
   const cartoes = $$(`[data-secao="${secaoId}"] .requisito`);
   const ultimo = cartoes[cartoes.length - 1];
@@ -530,14 +565,36 @@ const AVISO_VAZIO =
   'Marque "Sim" em pelo menos um dos três: data, descrição ou foto. ' +
   'Senão não sobra nada para o candidato preencher.';
 
-async function salvarRequisito(id, botao) {
-  const cartao = botao.closest('.requisito');
+async function gravarSecao(id) {
+  const campo = $(`[data-titulo-secao="${id}"]`);
+  const secao = estado.secoes.find(s => s.id === id);
+  if (!campo || !secao) return;
+
+  const titulo = campo.value.trim().toUpperCase();
+
+  if (!titulo) throw new Error('o título da seção não pode ficar vazio');
+  if (titulo === secao.titulo) return;
+
+  const { error } = await sb.from('secoes').update({ titulo }).eq('id', id);
+  if (error) throw new Error(traduzErro(error));
+
+  secao.titulo = titulo;
+}
+
+async function gravarRequisito(id) {
+  const cartao = $(`.requisito[data-requisito="${id}"]`);
   const req = estado.secoes.flatMap(s => s.requisitos).find(r => r.id === id);
+  if (!cartao || !req) return;                 // a tela foi redesenhada
+
+  pintarCartao(cartao, 'Salvando…', 'salvando');
 
   const titulo = cartao
     .querySelector(':scope > .requisito-topo [data-campo="titulo"]').value.trim();
 
-  if (!titulo) { toast('O título do requisito é obrigatório.', 'erro'); return; }
+  if (!titulo) {
+    pintarCartao(cartao, 'Falta o título', 'com-erro');
+    throw new Error('um requisito está sem título');
+  }
 
   // com alíneas, o requisito guarda apenas o enunciado
   const mudanca = req.alineas.length
@@ -545,21 +602,15 @@ async function salvarRequisito(id, botao) {
     : { titulo, ...lerCampos(cartao, '.requisito-grade') };
 
   if (!req.alineas.length && !pedeAlgumCampo(mudanca)) {
-    toast(AVISO_VAZIO, 'erro');
-    return;
+    pintarCartao(cartao, 'Marque data, descrição ou foto', 'com-erro');
+    throw new Error(AVISO_VAZIO);
   }
 
-  ocupado(botao, true, 'Salvar');
-
   const { error } = await sb.from('requisitos').update(mudanca).eq('id', id);
+  if (error) { pintarCartao(cartao, 'Não salvou', 'com-erro'); throw new Error(traduzErro(error)); }
 
-  ocupado(botao, false, 'Salvar');
-  if (error) { toast(traduzErro(error), 'erro'); return; }
-
-  cartao.classList.remove('sujo');
-  cartao.querySelector(':scope > .requisito-rodape [data-estado]').textContent = 'Salvo';
-  toast('Requisito salvo.', 'ok');
   Object.assign(req, mudanca);
+  pintarCartao(cartao, 'Salvo');
 }
 
 /* ------------------------------------------------------------ alíneas */
@@ -598,7 +649,7 @@ async function novaAlinea(requisitoId, botao) {
 
   if (error) { ocupado(botao, false, '+ Adicionar alínea'); toast(traduzErro(error), 'erro'); return; }
 
-  await carregarSecoes();
+  await recarregar();
 
   const cartoes = $$(`[data-requisito="${requisitoId}"] .alinea`);
   const ultima = cartoes[cartoes.length - 1];
@@ -610,31 +661,35 @@ async function novaAlinea(requisitoId, botao) {
   }
 }
 
-async function salvarAlinea(id, botao) {
-  const cartao = botao.closest('.alinea');
+async function gravarAlinea(id) {
+  const cartao = $(`.alinea[data-alinea="${id}"]`);
+  if (!cartao) return;
+
+  pintarCartao(cartao, 'Salvando…', 'salvando');
+
   const titulo = cartao
     .querySelector(':scope > .alinea-topo [data-campo="titulo"]').value.trim();
 
-  if (!titulo) { toast('O texto da alínea é obrigatório.', 'erro'); return; }
+  if (!titulo) {
+    pintarCartao(cartao, 'Falta o texto da alínea', 'com-erro');
+    throw new Error('uma alínea está sem texto');
+  }
 
   const mudanca = { titulo, ...lerCampos(cartao, '.requisito-grade') };
 
-  if (!pedeAlgumCampo(mudanca)) { toast(AVISO_VAZIO, 'erro'); return; }
-
-  ocupado(botao, true, 'Salvar');
+  if (!pedeAlgumCampo(mudanca)) {
+    pintarCartao(cartao, 'Marque data, descrição ou foto', 'com-erro');
+    throw new Error(AVISO_VAZIO);
+  }
 
   const { error } = await sb.from('alineas').update(mudanca).eq('id', id);
-
-  ocupado(botao, false, 'Salvar');
-  if (error) { toast(traduzErro(error), 'erro'); return; }
-
-  cartao.classList.remove('sujo');
-  cartao.querySelector(':scope > .alinea-rodape [data-estado]').textContent = 'Salvo';
-  toast('Alínea salva.', 'ok');
+  if (error) { pintarCartao(cartao, 'Não salvou', 'com-erro'); throw new Error(traduzErro(error)); }
 
   const alinea = estado.secoes.flatMap(s => s.requisitos)
     .flatMap(r => r.alineas).find(a => a.id === id);
   if (alinea) Object.assign(alinea, mudanca);
+
+  pintarCartao(cartao, 'Salvo');
 }
 
 async function excluirAlinea(id) {
@@ -667,11 +722,12 @@ async function excluirAlinea(id) {
 
   $('#confirmar').addEventListener('click', async e => {
     ocupado(e.target, true, 'Excluir');
+    auto.descartar(`ali:${id}`);
     const { error } = await sb.from('alineas').update({ ativo: false }).eq('id', id);
     if (error) { ocupado(e.target, false, 'Excluir'); toast(traduzErro(error), 'erro'); return; }
     toast('Alínea excluída.', 'ok');
     fecharModal();
-    carregarSecoes();
+    recarregar();
   });
 }
 
@@ -689,7 +745,7 @@ async function moverAlinea(id, passo) {
     sb.from('alineas').update({ ordem: a.ordem }).eq('id', b.id)
   ]);
 
-  await carregarSecoes();
+  await recarregar();
 }
 
 async function excluirRequisito(id) {
@@ -719,11 +775,13 @@ async function excluirRequisito(id) {
 
   $('#confirmar').addEventListener('click', async e => {
     ocupado(e.target, true, 'Excluir');
+    auto.descartar(`req:${id}`);
+    for (const a of req.alineas) auto.descartar(`ali:${a.id}`);
     const { error } = await sb.from('requisitos').update({ ativo: false }).eq('id', id);
     if (error) { ocupado(e.target, false, 'Excluir'); toast(traduzErro(error), 'erro'); return; }
     toast('Requisito excluído.', 'ok');
     fecharModal();
-    carregarSecoes();
+    recarregar();
   });
 }
 
@@ -740,13 +798,34 @@ async function moverRequisito(id, passo) {
     sb.from('requisitos').update({ ordem: a.ordem }).eq('id', b.id)
   ]);
 
-  await carregarSecoes();
+  await recarregar();
 }
 
 /* --------------------------------- aviso ao sair com coisa não salva */
 
 addEventListener('beforeunload', e => {
-  if ($('.requisito.sujo') || $('.alinea.sujo')) { e.preventDefault(); e.returnValue = ''; }
+  if (auto.temPendencia()) { e.preventDefault(); e.returnValue = ''; }
+});
+
+/* ------------------------------------------------- salvar e fechar */
+
+$('#btn-fechar-editor').addEventListener('click', async e => {
+  const texto = e.target.textContent;
+  ocupado(e.target, true, texto);
+
+  const tudoCerto = await auto.agora();
+
+  ocupado(e.target, false, texto);
+
+  if (!tudoCerto) {
+    toast('Ainda há algo que não foi salvo. Veja o aviso em vermelho no topo.', 'erro');
+    $('#auto-salvar').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+
+  toast('Tudo salvo.', 'ok');
+  irPara('tela-lista');
+  carregarFormularios();
 });
 
 /* ---------------------------------------------------------------- início */

@@ -96,6 +96,10 @@ const FERRAMENTAS = [
     texto: 'Crie e edite as seções e os requisitos dos 5 formulários.',
     destino: 'editor.html', perfis: ['administrador'] },
 
+  { id: 'prova', simbolo: '🎓', titulo: 'Prova PDL',
+    texto: 'Monte as questões e marque a data em que a prova abre.',
+    destino: 'prova-editor.html', perfis: ['administrador'] },
+
   { id: 'admin', simbolo: '⚙️', titulo: 'Painel do Administrador',
     texto: 'Cadastros, turmas, pedidos de acesso e atribuição de pastas.',
     destino: 'admin.html', perfis: ['administrador'] }

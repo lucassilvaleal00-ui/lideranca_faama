@@ -11,7 +11,8 @@ import { montarBarra, toast, esc, dataBR, quandoFoi, $, $$ } from './ui.js';
 
 const estado = {
   eu: null, vista: 'avaliar',
-  pastas: [], candidatos: [], contagens: new Map()
+  pastas: [], candidatos: [], contagens: new Map(),
+  pedidosProva: [], tentativas: []
 };
 
 /* ------------------------------------------------------------ utilidades */
@@ -50,7 +51,7 @@ function vazio(simbolo, texto) {
 /* =============================================================== CARGA */
 
 async function carregar() {
-  const [pa, ca, re] = await Promise.all([
+  const [pa, ca, re, pt, te] = await Promise.all([
     sb.from('pastas')
       .select(`*,
                formulario:formularios(nome, categoria),
@@ -62,13 +63,25 @@ async function carregar() {
       .eq('tipo', 'candidato')
       .order('nome'),
 
-    sb.from('respostas').select('pasta_id, status')
+    sb.from('respostas').select('pasta_id, status'),
+
+    sb.from('pedidos_tentativa')
+      .select(`*, candidato:perfis!pedidos_tentativa_candidato_id_fkey(id, nome, turma:turmas(nome))`)
+      .eq('status', 'pendente')
+      .order('criado_em'),
+
+    sb.from('tentativas')
+      .select(`*, candidato:perfis!tentativas_candidato_id_fkey(id, nome, turma:turmas(nome))`)
+      .order('enviada_em', { ascending: false })
+      .limit(60)
   ]);
 
   if (pa.error) { $('#area').innerHTML = vazio('⚠️', esc(traduzErro(pa.error))); return; }
 
-  estado.pastas     = pa.data ?? [];
-  estado.candidatos = ca.data ?? [];
+  estado.pastas       = pa.data ?? [];
+  estado.candidatos   = ca.data ?? [];
+  estado.pedidosProva = pt.data ?? [];
+  estado.tentativas   = te.data ?? [];
 
   // quantos requisitos aguardando avaliação em cada pasta
   estado.contagens = new Map();
@@ -96,6 +109,7 @@ function atualizarContadores() {
   põe('#c-solicitacoes', solicitacoes().length);
   põe('#c-candidatos', estado.candidatos.length);
   põe('#c-aprovados', aprovadas().length);
+  põe('#c-prova', estado.pedidosProva.length);
 }
 
 /* ============================================================= DESENHO */
@@ -186,6 +200,11 @@ function desenhar() {
     return;
   }
 
+  if (estado.vista === 'prova') {
+    area.innerHTML = telaProva();
+    return;
+  }
+
   if (estado.vista === 'aprovados') {
     const lista = aprovadas();
 
@@ -201,6 +220,70 @@ function desenhar() {
           </article>`).join('')}</div>`
       : vazio('🏅', 'Nenhum cartão aprovado por completo ainda.');
   }
+}
+
+/* --------------------------------------------------------- prova PDL */
+
+const notaBR = n => Number(n).toFixed(1).replace('.', ',');
+
+function telaProva() {
+  const pedidos = estado.pedidosProva;
+  const feitas = estado.tentativas;
+
+  const blocoPedidos = pedidos.length
+    ? `<div class="grade-pastas">${pedidos.map(p => `
+        <article class="cartao-pasta solicitada">
+          <div class="nome-pasta">Pedido de nova tentativa</div>
+          ${linhaPessoa(p.candidato)}
+          <div class="rodape">
+            <span class="info">Pediu ${quandoFoi(p.criado_em)}</span>
+            <button class="botao botao-vazado" data-recusar-tent="${p.id}">Recusar</button>
+            <button class="botao botao-principal" data-liberar-tent="${p.id}">Liberar</button>
+          </div>
+        </article>`).join('')}</div>`
+    : vazio('☕', 'Nenhum pedido de nova tentativa no momento.');
+
+  const blocoFeitas = feitas.length
+    ? `<div class="grade-pastas">${feitas.map(t => `
+        <article class="cartao-pasta ${t.aprovada ? 'aprovada' : ''}">
+          <div class="nome-pasta">
+            ${t.aprovada ? 'Aprovado' : 'Não alcançou a nota'} · ${esc(notaBR(t.nota))}
+          </div>
+          ${linhaPessoa(t.candidato)}
+          <div class="rodape">
+            <span class="info">
+              ${t.acertos} de ${t.total} questões · ${dataBR(t.enviada_em)}
+            </span>
+          </div>
+        </article>`).join('')}</div>`
+    : vazio('📄', 'Ninguém fez a prova ainda.');
+
+  return `
+    <h2 class="titulo-secao-lista">Pedidos de nova tentativa</h2>
+    <p class="dica-campo" style="margin:-4px 0 12px">
+      Cada candidato tem uma tentativa. Liberar aqui devolve o direito de
+      refazer a prova uma vez.
+    </p>
+    ${blocoPedidos}
+
+    <h2 class="titulo-secao-lista" style="margin-top:24px">Provas já feitas</h2>
+    ${blocoFeitas}`;
+}
+
+async function decidirTentativa(id, status, botao) {
+  const texto = botao.textContent;
+  ocupado(botao, true, texto);
+
+  const { error } = await sb.from('pedidos_tentativa')
+    .update({ status }).eq('id', id);
+
+  if (error) { ocupado(botao, false, texto); toast(traduzErro(error), 'erro'); return; }
+
+  toast(status === 'aprovado'
+    ? 'Nova tentativa liberada. O candidato já pode refazer a prova.'
+    : 'Pedido recusado.', 'ok');
+
+  carregar();
 }
 
 /* ============================================================== EVENTOS */
@@ -221,6 +304,8 @@ $('#area').addEventListener('click', e => {
   if (b.dataset.abrir)   { location.href = `pasta.html?id=${b.dataset.abrir}`; return; }
   if (b.dataset.liberar) return liberar(b.dataset.liberar, b);
   if (b.dataset.recusar) return modalRecusar(b.dataset.recusar);
+  if (b.dataset.liberarTent) return decidirTentativa(b.dataset.liberarTent, 'aprovado', b);
+  if (b.dataset.recusarTent) return decidirTentativa(b.dataset.recusarTent, 'recusado', b);
 });
 
 async function liberar(pastaId, botao) {

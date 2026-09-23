@@ -16,7 +16,7 @@ const estado = {
   usuarios: [], turmas: [], formularios: [], pastasPorPessoa: new Map(),
   candidatosPorRevisor: new Map(),
   pedidos: [], pagina: 1, busca: '', filtroTipo: '',
-  selecionados: new Set(), fotoNova: null, eu: null
+  selecionados: new Set(), fotoNova: null, eu: null, prova: null
 };
 
 /* ------------------------------------------------ chamada à Edge Function */
@@ -141,6 +141,7 @@ async function carregarTudo() {
   desenharUsuarios();
   desenharTurmas();
   desenharTimbrados();
+  carregarCertificado();
   atualizarSeloPedidos();
   carregarArmazenamento();
 }
@@ -259,6 +260,211 @@ $('#lista-timbrados').addEventListener('click', async e => {
       toast('Papel timbrado removido.', 'ok');
       fecharModal();
       carregarTudo();
+    });
+  }
+});
+
+/* ================================================ CERTIFICADO DA PROVA */
+
+const NOME_EXEMPLO = 'Nome Completo do Participante';
+
+async function carregarCertificado() {
+  const { data } = await sb.from('provas')
+    .select('id, certificado_path, certificado_nome, certificado_enviado_em, ' +
+            'cert_nome_y, cert_nome_tamanho, formulario:formularios(nome)')
+    .limit(1).maybeSingle();
+
+  estado.prova = data ?? null;
+  await desenharCertificado();
+}
+
+async function desenharCertificado() {
+  const area = $('#area-certificado');
+  const p = estado.prova;
+
+  if (!p) {
+    area.innerHTML = `<div class="aviso visivel info">
+      A prova ainda não existe no banco. Rode o arquivo
+      <strong>08_prova_pdl.sql</strong> no Supabase e recarregue esta página.
+    </div>`;
+    return;
+  }
+
+  let url = null;
+  if (p.certificado_path) {
+    const { data } = await sb.storage.from('certificados')
+      .createSignedUrl(p.certificado_path, 3600);
+    url = data?.signedUrl ?? null;
+  }
+
+  area.innerHTML = `
+    <div class="timbrado-linha">
+      <span class="selo-pdf ${p.certificado_path ? 'tem' : ''}">
+        ${p.certificado_path ? '🎓' : '＋'}</span>
+      <div class="corpo">
+        <strong>Certificado da prova PDL</strong>
+        <small>${p.certificado_path
+          ? `${esc(p.certificado_nome ?? 'modelo')} · enviado em ${dataBR(p.certificado_enviado_em)}`
+          : 'nenhum modelo enviado — quem passar na prova ainda não consegue baixar nada'}</small>
+      </div>
+      <label class="botao ${p.certificado_path ? 'botao-vazado' : 'botao-principal'}"
+             style="width:auto;padding:8px 14px;font-size:.84rem;margin:0">
+        ${p.certificado_path ? 'Trocar' : 'Enviar imagem'}
+        <input type="file" accept="image/png,image/jpeg" hidden id="arquivo-certificado">
+      </label>
+      ${p.certificado_path
+        ? '<button class="botao-icone perigo" id="tirar-certificado" title="Remover">🗑️</button>'
+        : ''}
+    </div>
+
+    ${url ? `
+      <div class="grade-2" style="margin-top:16px">
+        <div class="campo">
+          <label for="c-altura">Altura do nome</label>
+          <input type="range" id="c-altura" min="0" max="100" step="1"
+                 value="${Math.round(Number(p.cert_nome_y) * 100)}">
+          <div class="dica-campo">
+            <span id="c-altura-valor">${Math.round(Number(p.cert_nome_y) * 100)}</span>% da
+            altura, contando do topo. Ajuste até o nome cair logo abaixo de
+            "Certificamos que".
+          </div>
+        </div>
+        <div class="campo">
+          <label for="c-tamanho">Tamanho da letra</label>
+          <input type="range" id="c-tamanho" min="12" max="72" step="1"
+                 value="${p.cert_nome_tamanho}">
+          <div class="dica-campo"><span id="c-tamanho-valor">${p.cert_nome_tamanho}</span> pontos.</div>
+        </div>
+      </div>
+
+      <div class="previa-certificado" id="previa-certificado">
+        <img src="${url}" alt="Modelo do certificado">
+        <span class="nome-previa" id="nome-previa">${esc(NOME_EXEMPLO)}</span>
+      </div>
+
+      <div class="modal-acoes" style="justify-content:flex-start">
+        <button class="botao botao-principal" id="salvar-posicao"
+                style="width:auto;padding:10px 18px">Salvar posição</button>
+      </div>` : ''}`;
+
+  if (url) {
+    // a imagem pode ainda não ter altura; refazemos assim que ela carregar
+    const img = $('#previa-certificado img');
+    img?.addEventListener('load', posicionarPrevia);
+    addEventListener('resize', posicionarPrevia);
+    posicionarPrevia();
+  }
+}
+
+/** A prévia é a própria imagem com o nome por cima, nas mesmas proporções. */
+function posicionarPrevia() {
+  const caixa = $('#previa-certificado');
+  const nome = $('#nome-previa');
+  const campoY = $('#c-altura');
+  const campoT = $('#c-tamanho');
+  if (!caixa || !nome || !campoY || !campoT) return;
+
+  const y = Number(campoY.value) / 100;
+  const tamanho = Number(campoT.value);
+
+  const img = caixa.querySelector('img');
+  const altura = img.clientHeight || caixa.clientHeight;
+
+  nome.style.top = `${y * 100}%`;
+  // o corpo da fonte no PDF vale para uma folha A4 deitada (595 pt de altura)
+  nome.style.fontSize = `${Math.max(9, tamanho * (altura / 595))}px`;
+
+  $('#c-altura-valor').textContent = Math.round(y * 100);
+  $('#c-tamanho-valor').textContent = tamanho;
+}
+
+$('#area-certificado').addEventListener('input', e => {
+  if (e.target.id === 'c-altura' || e.target.id === 'c-tamanho') posicionarPrevia();
+});
+
+$('#area-certificado').addEventListener('change', async e => {
+  if (e.target.id !== 'arquivo-certificado') return;
+
+  const arquivo = e.target.files?.[0];
+  if (!arquivo) return;
+
+  limparAviso('#aviso-certificado');
+
+  if (!/^image\/(png|jpeg)$/.test(arquivo.type)) {
+    avisar('#aviso-certificado', 'O modelo precisa ser uma imagem PNG ou JPEG.');
+    return;
+  }
+  if (arquivo.size > 8 * 1024 * 1024) {
+    avisar('#aviso-certificado', 'A imagem passa de 8 MB. Salve com menos resolução.');
+    return;
+  }
+
+  const extensao = arquivo.type === 'image/png' ? 'png' : 'jpg';
+  const caminho = `${estado.prova.id}/modelo.${extensao}`;
+
+  const { error: erroUp } = await sb.storage.from('certificados')
+    .upload(caminho, arquivo, { upsert: true, contentType: arquivo.type });
+
+  if (erroUp) { avisar('#aviso-certificado', traduzErro(erroUp)); return; }
+
+  const { error } = await sb.from('provas').update({
+    certificado_path: caminho,
+    certificado_nome: arquivo.name,
+    certificado_enviado_em: new Date()
+  }).eq('id', estado.prova.id);
+
+  if (error) { avisar('#aviso-certificado', traduzErro(error)); return; }
+
+  avisar('#aviso-certificado', 'Modelo enviado. Confira a posição do nome abaixo.', 'ok');
+  carregarCertificado();
+});
+
+$('#area-certificado').addEventListener('click', async e => {
+  if (e.target.id === 'salvar-posicao') {
+    const botao = e.target;
+    ocupado(botao, true, 'Salvar posição');
+
+    const { error } = await sb.from('provas').update({
+      cert_nome_y: Number($('#c-altura').value) / 100,
+      cert_nome_tamanho: Number($('#c-tamanho').value)
+    }).eq('id', estado.prova.id);
+
+    ocupado(botao, false, 'Salvar posição');
+    if (error) { avisar('#aviso-certificado', traduzErro(error)); return; }
+
+    toast('Posição do nome salva.', 'ok');
+    carregarCertificado();
+    return;
+  }
+
+  if (e.target.closest('#tirar-certificado')) {
+    abrirModal(`
+      <div class="modal-topo">
+        <h2>Remover modelo</h2><button class="fechar" data-fechar>×</button>
+      </div>
+      <p style="font-size:.9rem;line-height:1.55">
+        Sem modelo, quem for aprovado na prova deixa de conseguir baixar o
+        certificado. As aprovações em si não mudam.
+      </p>
+      <div class="modal-acoes">
+        <button class="botao botao-vazado" data-fechar>Cancelar</button>
+        <button class="botao botao-principal" id="confirmar-cert"
+                style="background:var(--vermelho)">Remover</button>
+      </div>`);
+
+    $('#confirmar-cert').addEventListener('click', async ev => {
+      ocupado(ev.target, true, 'Remover');
+
+      await sb.storage.from('certificados').remove([estado.prova.certificado_path]);
+      const { error } = await sb.from('provas').update({
+        certificado_path: null, certificado_nome: null, certificado_enviado_em: null
+      }).eq('id', estado.prova.id);
+
+      if (error) { ocupado(ev.target, false, 'Remover'); toast(traduzErro(error), 'erro'); return; }
+
+      toast('Modelo removido.', 'ok');
+      fecharModal();
+      carregarCertificado();
     });
   }
 });
